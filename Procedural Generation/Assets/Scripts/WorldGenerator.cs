@@ -11,8 +11,14 @@ public class WorldGenerator : MonoBehaviour
 
     public float xOffset;
     public float yOffset;
+    public float step;
 
     public float scale = 0.25f;
+
+    public int chunkResolution;
+    public int octaves;
+    public float persistance;
+    public float lacunarity;
 
 
     public void Start()
@@ -25,14 +31,14 @@ public class WorldGenerator : MonoBehaviour
 
     void CreateWorld()
     {
-        float step = chunk.xSize * chunk.scale;
         for (int x = 0; x < xSize; x++)
         {
             for (int z = 0; z < zSize; z++)
             {
                 ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, z * step), Quaternion.identity).GetComponent<ChunkGenerator>();
-                newChunk.xOffset = x * step;
-                newChunk.yOffset = z * step;
+                float[,] newHeightMap = GenerateHeightMap(chunkResolution + 1, chunkResolution + 1, xOffset + x * step + 1, yOffset + z * step + 1, octaves, persistance, lacunarity);
+                newChunk.setHeightMap(newHeightMap);
+                newChunk.GenerateTerrain();
 
             }
         }
@@ -47,5 +53,46 @@ public class WorldGenerator : MonoBehaviour
 
         float noise = Mathf.PerlinNoise(xCoord, yCoord);
         return noise;
+    }
+    float[,] GenerateHeightMap(int xSize, int ySize, float xOffset, float yOffset, int octaves, float persistance, float lacunarity)
+    {
+
+        float[,] heightMap = new float[xSize, ySize];
+        float maxHeightValue = float.MinValue;
+        float minHeightValue = float.MaxValue;
+        for (int x = 0; x < xSize; x++)
+        {
+            for (int y = 0; y < ySize; y++)
+            {
+                float amplitude = 1;
+                float frequency = 1;
+                float noiseHeight = 0;
+                for (int i = 0; i < octaves; i++)
+                {
+                    float xCoord = ((float)x + xOffset / frequency * scale);
+                    float yCoord = ((float)y + yOffset / frequency * scale);
+
+                    float noise = Mathf.PerlinNoise(xCoord, yCoord) * 2 - 1;
+                    //print(xCoord + " " + yCoord);
+
+                    noiseHeight += noise * amplitude;
+
+                    amplitude *= persistance;
+                    frequency *= lacunarity;
+                    //noise *= noiseHeight;
+                }
+                maxHeightValue = Mathf.Max(maxHeightValue, noiseHeight);
+                minHeightValue = Mathf.Min(minHeightValue, noiseHeight);
+                heightMap[x, y] = noiseHeight;
+            }
+        }
+        for (int x = 0; x < xSize; x++)
+        {
+            for (int y = 0; y < ySize; y++)
+            {
+                heightMap[x, y] = Mathf.InverseLerp(minHeightValue, maxHeightValue, heightMap[x, y]);
+            }
+        }
+        return heightMap;
     }
 }

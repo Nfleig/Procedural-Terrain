@@ -19,15 +19,25 @@ public class ChunkGenerator : MonoBehaviour
     public int octaves;
     public float persistance;
     public float lacunarity;
+    private float[,] heightMap;
     // Start is called before the first frame update
-    void Start()
+    void Update()
     {
+        GenerateTerrain();
         
-        //scale = 8f / (float)xSize;
+    }
+
+    public void GenerateTerrain()
+    {
         mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = mesh;
         generateMesh();
         updateMesh();
+    }
+
+    public void setHeightMap(float[,] heightMap)
+    {
+        this.heightMap = heightMap;
     }
 
 
@@ -114,8 +124,8 @@ public class ChunkGenerator : MonoBehaviour
                 float noiseHeight = 0;
                 for (int i = 0; i < octaves; i++)
                 {
-                    float xCoord = ((float)x /  frequency * scale) + xOffset;
-                    float yCoord = ((float)y /  frequency * scale) + yOffset;
+                    float xCoord = (((float)x + xOffset) /  frequency * scale);
+                    float yCoord = (((float)y + yOffset)/  frequency * scale);
 
                     float noise = Mathf.PerlinNoise(xCoord, yCoord) * 2 - 1;
                     //print(xCoord + " " + yCoord);
