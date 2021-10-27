@@ -94,7 +94,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   xSize: 32
   zSize: 32
-  scale: 0.25
+  scale: 0.5
   depth: 1
   resolution: 1
   xOffset: 0
