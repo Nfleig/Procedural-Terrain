@@ -45,7 +45,7 @@ public class ChunkGenerator : MonoBehaviour
     {
         vertices = new Vector3[(xSize + 1) * (zSize + 1)];
         int i = 0;
-        float[,] heightMap = GenerateHeightMap(xSize + 1, zSize + 1, octaves, persistance, lacunarity);
+        float[,] heightMap = GenerateHeightMap(xSize + 1, zSize + 1, xOffset, yOffset, octaves, persistance, lacunarity);
         for (int z = 0; z <= zSize; z++)
         {
             for (int x = 0; x <= xSize; x++)
@@ -109,7 +109,7 @@ public class ChunkGenerator : MonoBehaviour
         return noise;
     }
 
-    float[,] GenerateHeightMap(int xSize, int ySize, int octaves, float persistance, float lacunarity)
+    float[,] GenerateHeightMap(int xSize, int ySize, float xOffset, float yOffset, int octaves, float persistance, float lacunarity)
     {
         
         float[,] heightMap = new float[xSize, ySize];

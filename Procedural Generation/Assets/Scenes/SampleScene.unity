@@ -141,7 +141,7 @@ PrefabInstance:
     - target: {fileID: 5880690495273791909, guid: 587da03036ece3847a1f5d641701e8ab,
         type: 3}
       propertyPath: xOffset
-      value: 8
+      value: 32
       objectReference: {fileID: 0}
     - target: {fileID: 5880690495273791910, guid: 587da03036ece3847a1f5d641701e8ab,
         type: 3}
@@ -216,6 +216,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5880690495273791909, guid: 587da03036ece3847a1f5d641701e8ab,
+        type: 3}
+      propertyPath: xSize
+      value: 64
       objectReference: {fileID: 0}
     - target: {fileID: 5880690495273791910, guid: 587da03036ece3847a1f5d641701e8ab,
         type: 3}
@@ -639,8 +644,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chunkObject: {fileID: 5880690495273791906, guid: 587da03036ece3847a1f5d641701e8ab,
     type: 3}
-  xSize: 4
-  zSize: 4
+  xSize: 1
+  zSize: 1
   xOffset: 0
   yOffset: 0
   step: 8

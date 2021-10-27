@@ -36,7 +36,7 @@ public class WorldGenerator : MonoBehaviour
             for (int z = 0; z < zSize; z++)
             {
                 ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, z * step), Quaternion.identity).GetComponent<ChunkGenerator>();
-                float[,] newHeightMap = GenerateHeightMap(chunkResolution + 1, chunkResolution + 1, xOffset + x * step + 1, yOffset + z * step + 1, octaves, persistance, lacunarity);
+                float[,] newHeightMap = GenerateHeightMap(chunkResolution + 1, chunkResolution + 1, xOffset + x * 32, yOffset + z * 32, octaves, persistance, lacunarity);
                 newChunk.setHeightMap(newHeightMap);
                 newChunk.GenerateTerrain();
 
@@ -69,11 +69,11 @@ public class WorldGenerator : MonoBehaviour
                 float noiseHeight = 0;
                 for (int i = 0; i < octaves; i++)
                 {
-                    float xCoord = ((float)x + xOffset / frequency * scale);
-                    float yCoord = ((float)y + yOffset / frequency * scale);
+                    float xCoord = (((float)x + xOffset) / frequency * scale);
+                    float yCoord = (((float)y + yOffset) / frequency * scale);
 
                     float noise = Mathf.PerlinNoise(xCoord, yCoord) * 2 - 1;
-                    //print(xCoord + " " + yCoord);
+                    print(((float)(x) + xOffset));
 
                     noiseHeight += noise * amplitude;
 
