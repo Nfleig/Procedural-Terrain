@@ -16,7 +16,11 @@ public class ChunkGenerator : MonoBehaviour
     public float lacunarity;
     private float[,] heightMap;
     // Start is called before the first frame update
-    
+
+    public void Start()
+    {
+        
+    }
 
     public void GenerateTerrain(int xSize, int ySize, float scale, float depth, AnimationCurve heightCurve)
     {
@@ -24,6 +28,7 @@ public class ChunkGenerator : MonoBehaviour
         GetComponent<MeshFilter>().mesh = mesh;
         generateMesh(xSize, ySize, scale, depth, heightCurve);
         updateMesh();
+
     }
 
     public void setHeightMap(float[,] heightMap)
@@ -76,4 +81,5 @@ public class ChunkGenerator : MonoBehaviour
         mesh.RecalculateNormals();
     }
 
+    
 }

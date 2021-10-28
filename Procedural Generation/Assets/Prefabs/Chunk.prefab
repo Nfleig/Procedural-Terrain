@@ -92,11 +92,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71674919c0caca7458bd47a124f393de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  xSize: 32
-  zSize: 32
-  scale: 0.5
-  depth: 1
-  resolution: 1
   xOffset: 0
   yOffset: 0
   octaves: 4

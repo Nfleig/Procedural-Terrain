@@ -11,7 +11,8 @@ public class CameraController : MonoBehaviour
     public float MaxZoomDistance;
 
     public float XRotateThreshold;
-    public float Boundary;
+    public float ChunkArea;
+    public WorldGenerator worldGen;
 
     private Camera camera;
     private bool isClicking;
@@ -21,6 +22,12 @@ public class CameraController : MonoBehaviour
     void Awake()
     {
         camera = Camera.main;
+    }
+
+    private void Start()
+    {
+        GenerateChunks(true);
+        //worldGen.GenerateChunk(0, 0);
     }
 
     // Update is called once per frame
@@ -51,5 +58,23 @@ public class CameraController : MonoBehaviour
             camera.transform.position += camera.transform.forward * scroll * 5;
         }
 
+    }
+
+    void GenerateChunks(bool generateAll)
+    {
+        Vector2 chunkAreaTopCorner = new Vector2(transform.position.x + ChunkArea, transform.position.z + ChunkArea);
+        Vector2 chunkAreaBottomCorner = new Vector2(transform.position.x - ChunkArea, transform.position.z - ChunkArea);
+
+        if(generateAll)
+        {
+            for (int x = (int)(chunkAreaBottomCorner.x / 8); x * 8 < chunkAreaTopCorner.x; x++)
+            {
+                for (int y = (int)(chunkAreaBottomCorner.y / 8); y * 8 < chunkAreaTopCorner.y; y++)
+                {
+                    //print(x + " " + y);
+                    worldGen.GenerateChunk(x, y);
+                }
+            }
+        }
     }
 }
