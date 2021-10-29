@@ -425,7 +425,7 @@ MonoBehaviour:
   MinZoomDistance: 10
   MaxZoomDistance: 20
   XRotateThreshold: 10
-  ChunkArea: 128
+  VisibleChunks: 1
   worldGen: {fileID: 1813089841}
 --- !u!4 &1538394344
 Transform:

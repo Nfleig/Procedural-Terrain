@@ -43,12 +43,13 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-    public void GenerateChunk(int x, int y)
+    public Chunk GenerateChunk(int x, int y)
     {
         ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
         float[,] newHeightMap = GenerateHeightMap(chunkResolution + 1, chunkResolution + 1, (int)(Random.value * 10000), noiseScale, new Vector2(offset.x + x * chunkResolution, offset.y + y * chunkResolution), octaves, persistance, lacunarity);
         newChunk.setHeightMap(newHeightMap);
         newChunk.GenerateTerrain(chunkResolution, chunkResolution, scale, depth, heightCurve);
+        return newChunk.GetComponent<Chunk>();
     }
 
     public void CreateWorld()
