@@ -75,15 +75,16 @@ public class CameraController : MonoBehaviour
                 for (int y = -VisibleChunks; y < VisibleChunks; y++)
                 {
                     Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
-                    Chunk newChunk = worldGen.GenerateChunk(chunkCoordX + x, chunkCoordY + y);
+                    Chunk newChunk = worldGen.RequestChunk(chunkCoordX + x, chunkCoordY + y);
                     chunkDictionary.Add(chunkCoord, newChunk);
                 }
             }
         }
         else
         {
-            int chunkCoordX = Mathf.RoundToInt(transform.position.x / 8);
-            int chunkCoordY = Mathf.RoundToInt(transform.position.z / 8);
+            int chunkCoordX = Mathf.RoundToInt(transform.position.x / 32);
+            int chunkCoordY = Mathf.RoundToInt(transform.position.z / 32);
+
             Chunk[] allChunks = (Chunk[])GameObject.FindObjectsOfType(typeof(Chunk));
             foreach (Chunk chunk in allChunks)
             {
@@ -97,15 +98,15 @@ public class CameraController : MonoBehaviour
                 for (int y = -VisibleChunks; y < VisibleChunks; y++)
                 {
                     Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
-                    Chunk foundChunk;
-                    if (chunkDictionary.TryGetValue(chunkCoord, out foundChunk))
+                    if (chunkDictionary.ContainsKey(chunkCoord))
                     {
-                        foundChunk.Load();
+                        chunkDictionary[chunkCoord].Load();
                     }
                     else
                     {
-                        Chunk newChunk = worldGen.GenerateChunk(chunkCoordX + x, chunkCoordY + y);
+                        Chunk newChunk = worldGen.RequestChunk((int)chunkCoord.x, (int)chunkCoord.y);
                         chunkDictionary.Add(chunkCoord, newChunk);
+                        //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
 
                     }
                 }

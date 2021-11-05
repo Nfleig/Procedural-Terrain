@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
+using System.Threading;
 
 public class WorldGenerator : MonoBehaviour
 {
@@ -27,6 +29,8 @@ public class WorldGenerator : MonoBehaviour
     public Octave[] heightMapArray;
     public Octave[] moistureMapArray;
     private System.Random prng;
+
+    Queue<MapThreadInfo> mapDataThreadInfoQueue = new Queue<MapThreadInfo>();
     
     [System.Serializable]
     public struct Octave
@@ -43,19 +47,54 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
+    public struct MapData
+    {
+        public readonly float[,] heightMap;
+        public readonly ChunkGenerator chunk;
+
+        public MapData(float[,] heightMap, ChunkGenerator chunk)
+        {
+            this.heightMap = heightMap;
+            this.chunk = chunk;
+        }
+    }
+
+    public struct MapThreadInfo
+    {
+        public readonly Action<MapData> callback;
+        public readonly MapData data;
+        
+        public MapThreadInfo(Action<MapData> callback, MapData data)
+        {
+            this.callback = callback;
+            this.data = data;
+        }
+    }
+
 
     public void Awake()
     {
         //CreateWorld();
         DeleteWorld();
-        //scale = chunkSize * 2 / (float)chunkResolution;
-        scale = 1;
+        scale = chunkSize * 2 / (float)chunkResolution;
         adjustedNoiseScale = noiseScale / chunkResolution;
         //print(adjustedNoiseScale);
-        step = chunkSize * 2;
-        seed = (int)(Random.value * 10000);
+        step = chunkSize;
+        seed = (int)(UnityEngine.Random.value * 10000);
         prng = new System.Random(seed);
         heightMapArray = GenerateOctaves(octaves);
+    }
+
+    public void Update()
+    {
+        if (mapDataThreadInfoQueue.Count > 0)
+        {
+            for (int i = 0; i < mapDataThreadInfoQueue.Count; i++)
+            {
+                MapThreadInfo threadInfo = mapDataThreadInfoQueue.Dequeue();
+                threadInfo.callback(threadInfo.data);
+            }
+        }
     }
 
     Octave[] GenerateOctaves(int octaves)
@@ -82,15 +121,41 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-    public Chunk GenerateChunk(int x, int y)
+    public Chunk RequestChunk(int x, int y)
     {
-        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
+        Chunk newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<Chunk>();
         //float[,] newHeightMap = GenerateHeightMap(chunkResolution + 1, chunkResolution + 1, seed, noiseScale, new Vector2(offset.x + x * chunkResolution, offset.y + y * chunkResolution), octaves, persistance, lacunarity);
-        float[,] newHeightMap = newGenerateHeightMap(chunkResolution + 1, chunkResolution + 1, heightMapArray, heightCurve, new Vector2(offset.x + x * chunkResolution, offset.y + y * chunkResolution));
-        newChunk.setHeightMap(newHeightMap);
-        newChunk.GenerateTerrain(chunkResolution, chunkResolution, scale, depth, heightCurve);
-        return newChunk.GetComponent<Chunk>();
+        RequestChunk(x, y, newChunk.GetComponent<ChunkGenerator>(), GenerateChunk);
+        return newChunk;
     }
+
+    public void GenerateChunk(MapData mapData)
+    {
+        ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
+        newChunk.GenerateTerrain(mapData.heightMap, chunkResolution, chunkResolution, scale, depth);
+    }
+
+    void RequestChunk(int x, int y, ChunkGenerator chunk, Action<MapData> callback)
+    {
+        ThreadStart threadStart = delegate
+        {
+            MapDataThread(x, y, chunk, callback);
+        };
+
+        new Thread(threadStart).Start();
+    }
+
+    void MapDataThread(int x, int y, ChunkGenerator chunk, Action<MapData> callback)
+    {
+        float[,] heightMap = GenerateHeightMap(chunkResolution + 1, chunkResolution + 1, heightMapArray, heightCurve, new Vector2(offset.x + x * chunkResolution, offset.y + y * chunkResolution));
+        MapData mapData = new MapData(heightMap, chunk);
+
+        lock (mapDataThreadInfoQueue)
+        {
+            mapDataThreadInfoQueue.Enqueue(new MapThreadInfo(callback, mapData));
+        }
+    }
+
 
     public void CreateWorld()
     {
@@ -109,7 +174,7 @@ public class WorldGenerator : MonoBehaviour
         {
             for (int z = 0; z < zSize; z++)
             {
-                GenerateChunk(x, z);
+                RequestChunk(x, z);
 
             }
         }
@@ -122,8 +187,9 @@ public class WorldGenerator : MonoBehaviour
      * https://www.reddit.com/r/proceduralgeneration/comments/qgz2m0/i_need_help_pls/
      */
 
-    public float[,] newGenerateHeightMap(int xSize, int ySize, Octave[] octaveArray, AnimationCurve heightCurve, Vector2 offset)
+    public float[,] GenerateHeightMap(int xSize, int ySize, Octave[] octaveArray, AnimationCurve _heightCurve, Vector2 offset)
     {
+        AnimationCurve heightCurve = new AnimationCurve(_heightCurve.keys);
         float[,] heightMap = new float[xSize, ySize];
         for (int x = 0; x < xSize; x++)
         {
@@ -145,6 +211,7 @@ public class WorldGenerator : MonoBehaviour
         }
         return heightMap;
     }
+    /*
 
     public float[,] GenerateHeightMap(int xSize, int ySize, int seed, float scale, Vector2 offset, int octaves, float persistance, float lacunarity)
     {
@@ -196,4 +263,5 @@ public class WorldGenerator : MonoBehaviour
         }
         return heightMap;
     }
+    */
 }

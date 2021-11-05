@@ -23,23 +23,11 @@ public class ChunkGenerator : MonoBehaviour
         
     }
 
-    public void GenerateTerrain(int xSize, int ySize, float scale, float depth, AnimationCurve heightCurve)
+
+    public void GenerateTerrain(float[,] heightMap, int xSize, int ySize, float scale, float depth)
     {
         mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = mesh;
-        generateMesh(xSize, ySize, scale, depth, heightCurve);
-        updateMesh();
-
-    }
-
-    public void setHeightMap(float[,] heightMap)
-    {
-        this.heightMap = heightMap;
-    }
-
-
-    void generateMesh(int xSize, int ySize, float scale, float depth, AnimationCurve heightCurve)
-    {
         vertices = new Vector3[(xSize + 1) * (ySize + 1)];
         int i = 0;
         //float[,] heightMap = GenerateHeightMap(xSize + 1, zSize + 1, xOffset, yOffset, octaves, persistance, lacunarity);
@@ -83,6 +71,9 @@ public class ChunkGenerator : MonoBehaviour
             }
         }
 
+        updateMesh();
+
+        GetComponent<MeshCollider>().sharedMesh = mesh;
     }
 
     void updateMesh()
