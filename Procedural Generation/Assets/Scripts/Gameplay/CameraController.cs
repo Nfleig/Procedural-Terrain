@@ -35,7 +35,7 @@ public class CameraController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        GenerateChunks(false);
+        GenerateChunks();
         float xInput = Input.GetAxis("Horizontal");
         float zInput = Input.GetAxis("Vertical");
         if(Input.GetButtonDown("Fire2")){
@@ -63,52 +63,35 @@ public class CameraController : MonoBehaviour
 
     }
 
-    void GenerateChunks(bool generateAll)
+    void GenerateChunks()
     {
 
-        if (generateAll)
+        int chunkCoordX = Mathf.RoundToInt(transform.position.x / worldGen.chunkSize);
+        int chunkCoordY = Mathf.RoundToInt(transform.position.z / worldGen.chunkSize);
+
+        Chunk[] allChunks = (Chunk[])GameObject.FindObjectsOfType(typeof(Chunk));
+        foreach (Chunk chunk in allChunks)
         {
-            int chunkCoordX = Mathf.RoundToInt(transform.position.x / 8);
-            int chunkCoordY = Mathf.RoundToInt(transform.position.y / 8);
-            for (int x = -VisibleChunks; x < VisibleChunks; x++)
+            if (Vector3.Distance(transform.position, chunk.transform.position) > VisibleChunks * 8)
             {
-                for (int y = -VisibleChunks; y < VisibleChunks; y++)
-                {
-                    Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
-                    Chunk newChunk = worldGen.RequestChunk(chunkCoordX + x, chunkCoordY + y);
-                    chunkDictionary.Add(chunkCoord, newChunk);
-                }
+                chunk.Unload();
             }
         }
-        else
+        for (int x = -VisibleChunks; x < VisibleChunks; x++)
         {
-            int chunkCoordX = Mathf.RoundToInt(transform.position.x / 32);
-            int chunkCoordY = Mathf.RoundToInt(transform.position.z / 32);
-
-            Chunk[] allChunks = (Chunk[])GameObject.FindObjectsOfType(typeof(Chunk));
-            foreach (Chunk chunk in allChunks)
+            for (int y = -VisibleChunks; y < VisibleChunks; y++)
             {
-                if (Vector3.Distance(transform.position, chunk.transform.position) > VisibleChunks * 8)
+                Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
+                if (chunkDictionary.ContainsKey(chunkCoord))
                 {
-                    chunk.Unload();
+                    chunkDictionary[chunkCoord].Load();
                 }
-            }
-            for (int x = -VisibleChunks; x < VisibleChunks; x++)
-            {
-                for (int y = -VisibleChunks; y < VisibleChunks; y++)
+                else
                 {
-                    Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
-                    if (chunkDictionary.ContainsKey(chunkCoord))
-                    {
-                        chunkDictionary[chunkCoord].Load();
-                    }
-                    else
-                    {
-                        Chunk newChunk = worldGen.RequestChunk((int)chunkCoord.x, (int)chunkCoord.y);
-                        chunkDictionary.Add(chunkCoord, newChunk);
-                        //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
+                    Chunk newChunk = worldGen.RequestChunk((int)chunkCoord.x, (int)chunkCoord.y);
+                    chunkDictionary.Add(chunkCoord, newChunk);
+                    //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
 
-                    }
                 }
             }
         }

@@ -10,19 +10,6 @@ public class ChunkGenerator : MonoBehaviour
     Vector3[] vertices;
     Vector2[] uvs;
     int[] triangles;
-    public float xOffset;
-    public float yOffset;
-    public int octaves;
-    public float persistance;
-    public float lacunarity;
-    private float[,] heightMap;
-    // Start is called before the first frame update
-
-    public void Start()
-    {
-        
-    }
-
 
     public void GenerateTerrain(float[,] heightMap, int xSize, int ySize, float scale, float depth)
     {
@@ -30,13 +17,11 @@ public class ChunkGenerator : MonoBehaviour
         GetComponent<MeshFilter>().mesh = mesh;
         vertices = new Vector3[(xSize + 1) * (ySize + 1)];
         int i = 0;
-        //float[,] heightMap = GenerateHeightMap(xSize + 1, zSize + 1, xOffset, yOffset, octaves, persistance, lacunarity);
         for (int z = 0; z <= ySize; z++)
         {
             for (int x = 0; x <= xSize; x++)
             {
                 float y = heightMap[z, x] * depth;
-                //print(y);
 
                 vertices[i++] = new Vector3(x * scale, y, z * scale);
             }
