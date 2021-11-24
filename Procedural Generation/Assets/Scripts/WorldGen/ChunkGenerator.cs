@@ -9,9 +9,10 @@ public class ChunkGenerator : MonoBehaviour
 
     Vector3[] vertices;
     Vector2[] uvs;
+    Color[] colors;
     int[] triangles;
 
-    public void GenerateTerrain(float[,] heightMap, int xSize, int ySize, float scale, float depth)
+    public void GenerateTerrain(float[,] heightMap, int xSize, int ySize, float scale, float depth, Color[] colors)
     {
         mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = mesh;
@@ -21,7 +22,7 @@ public class ChunkGenerator : MonoBehaviour
         {
             for (int x = 0; x <= xSize; x++)
             {
-                float y = heightMap[z, x] * depth;
+                float y = heightMap[x, z] * depth;
 
                 vertices[i++] = new Vector3(x * scale, y, z * scale);
             }
@@ -45,16 +46,21 @@ public class ChunkGenerator : MonoBehaviour
             }
             vert++;
         }
-        Vector2[] uvs = new Vector2[vertices.Length];
+        /*
+        uvs = new Vector2[vertices.Length];
         i = 0;
         for (int z = 0; z <= ySize; z++)
         {
             for (int x = 0; x <= xSize; x++)
             {
-                uvs[i] = new Vector2(x / xSize, z / ySize);
+                uvs[i] = new Vector2((float)x / xSize, (float)z / ySize);
+                //print(uvs[i]);
                 i++;
             }
         }
+        */
+
+        this.colors = colors;
 
         updateMesh();
 
@@ -65,7 +71,7 @@ public class ChunkGenerator : MonoBehaviour
     {
         mesh.vertices = vertices;
         mesh.triangles = triangles;
-        mesh.uv = uvs;
+        mesh.colors = colors;
         mesh.RecalculateNormals();
     }
 

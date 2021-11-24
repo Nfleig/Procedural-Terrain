@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Chunk : MonoBehaviour
 {
-    public enum Biome {MOUNTAIN, PLAINS, DESERT, TUNDRA}
+    public enum Biome {PLAINS, DESERT, TUNDRA}
 
     private MeshRenderer renderer;
     public int xPosition;

@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 5880690495273791908}
   - component: {fileID: 5880690495273791909}
   - component: {fileID: -1701249069700586931}
-  - component: {fileID: -5150290497265891734}
   - component: {fileID: -2918036730739074107}
   m_Layer: 0
   m_Name: Chunk
@@ -95,11 +94,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71674919c0caca7458bd47a124f393de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  xOffset: 0
-  yOffset: 0
-  octaves: 4
-  persistance: 0.5
-  lacunarity: 2
 --- !u!114 &-1701249069700586931
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -114,21 +108,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   xPosition: 0
   yPosition: 0
---- !u!114 &-5150290497265891734
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5880690495273791906}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 1, g: 0, b: 0, a: 0.5}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
+  hovering: 0
+  selected: 0
 --- !u!64 &-2918036730739074107
 MeshCollider:
   m_ObjectHideFlags: 0
