@@ -556,11 +556,11 @@ public class WorldGenerator : MonoBehaviour
             float distance = Mathf.Sqrt(Mathf.Pow(dx, 2) + Mathf.Pow(dy, 2));
             if (distance < r)
             {
-                //print(jitterPoints[i].x + " " + jitterPoints[i].y);
+                
                 float falloffValue = Mathf.Pow(Mathf.Max(0, Mathf.Pow(r, 2) - Mathf.Pow(dx, 2) - Mathf.Pow(dy, 2)), 2);
                 float falloffWeight = Mathf.InverseLerp(0, Mathf.Pow(r, 4), falloffValue);
                 Biome biome = getBiome(jitterPoints[i], chunkPosition);
-                //print(biome * biomes.Length);
+                
                 for (int x = (int)Mathf.Max(0, jitterPoints[i].x - worldPointRadius); x < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoints[i].x + worldPointRadius); x++)
                 {
                     for (int y = (int)Mathf.Max(0, jitterPoints[i].y - worldPointRadius); y < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoints[i].y + worldPointRadius); y++)
@@ -574,7 +574,7 @@ public class WorldGenerator : MonoBehaviour
                             distance = Vector2.Distance(new Vector2(x, y), jitterPoints[i]);
                             distance = Mathf.InverseLerp(0, worldPointRadius, distance);
                             float biomeBlendNoise = SampleHeightMap(biomeBlendMapSettings, new Vector2(x, y), chunkPosition);
-                            float finalWeight = falloffWeight * (1 - distance) * biomeBlendNoise + 0.01f;
+                            float finalWeight = (1 - distance) * biomeBlendNoise + 0.01f;
                             Color biomeColor = biome.color.Evaluate(heightMap[x, y]);
                             //print(biomeColors[x, y]);
                             biomeColors[x, y] = Color.Lerp(biomeColors[x, y], biomeColor, finalWeight);
