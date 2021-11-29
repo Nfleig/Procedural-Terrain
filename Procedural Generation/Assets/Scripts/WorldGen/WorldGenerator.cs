@@ -516,68 +516,67 @@ public class WorldGenerator : MonoBehaviour
      * GUIDE: https://noiseposti.ng/posts/2021-03-13-Fast-Biome-Blending-Without-Squareness.html
      * https://gamedev.stackexchange.com/questions/191685/problems-blending-biomes-together-in-relation-to-moisture-temperature/191702#191702
      * 
+     * TODO: Make this into a compute shader
+     * 
      */
 
     public Color[] GenerateBiomeBlendMap(Vector2 chunkPosition, float[,] heightMap)
     {
         float jitterDistance = biomeBlendRange;
-        Vector2 centerPoint = new Vector2();
         int i = 0;
         float chunkRadius = Vector2.Distance(new Vector2(0, 0), new Vector2(heightMapSettings.size / 2, heightMapSettings.size / 2));
         float r = 2 + (2 * jitterDistance) + 1f + chunkRadius;
         //print(SampleHeightMap(temperatureMapSettings, new Vector2(64.1f, 64.1f), new Vector2(0, 0)) == SampleHeightMap(temperatureMapSettings, new Vector2(0.1f, 0.1f), new Vector2(1, 1)));
-
+        float randomDirection = (float)prng.NextDouble() * 2 * Mathf.PI;
+        float xPos = (heightMapSettings.size / 2 + 3) + (jitterDistance * Mathf.Cos(randomDirection));
+        float yPos = (heightMapSettings.size / 2 + 3) + (jitterDistance * Mathf.Sin(randomDirection));
+        Vector2 centerPoint = new Vector2(xPos, yPos);
 
         List<Vector2> jitterPoints = new List<Vector2>();
+        Color[,] biomeColors = new Color[heightMapSettings.size + 1, heightMapSettings.size + 1];
+        float worldPointRadius = 10f;
         for (int x = (int)((heightMapSettings.size / 2) - chunkRadius); x <= (heightMapSettings.size / 2) + chunkRadius; x += 4)
         //for (int x = 0; x <= heightMapSettings.size; x += 2)
             {
             for (int y = (int)((heightMapSettings.size / 2) - chunkRadius); y <= (heightMapSettings.size / 2) + chunkRadius; y += 4)
             //for (int y = 0; y <= heightMapSettings.size; y += 2)
             {
-                float randomDirection = (float)prng.NextDouble() * 2 * Mathf.PI;
-                float xPos = (float)x + (jitterDistance * Mathf.Cos(randomDirection));
-                float yPos = (float)y + (jitterDistance * Mathf.Sin(randomDirection));
-                Vector2 jitterPoint = new Vector2(xPos, yPos);
-                jitterPoints.Add(jitterPoint);
+                Vector2 jitterPoint;
                 if (x == heightMapSettings.size / 2 + 3 && y == heightMapSettings.size / 2 + 3)
                 {
-                    centerPoint = jitterPoint;
+                    jitterPoint = centerPoint;
                 }
-                i++;
-            }
-        }
-        Color[,] biomeColors = new Color[heightMapSettings.size + 1, heightMapSettings.size + 1];
-        float worldPointRadius = 10f;
-        for (i = 0; i < jitterPoints.Count; i++)
-        {
-            float dx = jitterPoints[i].x - centerPoint.x;
-            float dy = jitterPoints[i].y - centerPoint.y;
-            float distance = Mathf.Sqrt(Mathf.Pow(dx, 2) + Mathf.Pow(dy, 2));
-            if (distance < r)
-            {
-                
-                float falloffValue = Mathf.Pow(Mathf.Max(0, Mathf.Pow(r, 2) - Mathf.Pow(dx, 2) - Mathf.Pow(dy, 2)), 2);
-                float falloffWeight = Mathf.InverseLerp(0, Mathf.Pow(r, 4), falloffValue);
-                Biome biome = getBiome(jitterPoints[i], chunkPosition);
-                
-                for (int x = (int)Mathf.Max(0, jitterPoints[i].x - worldPointRadius); x < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoints[i].x + worldPointRadius); x++)
+                else
                 {
-                    for (int y = (int)Mathf.Max(0, jitterPoints[i].y - worldPointRadius); y < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoints[i].y + worldPointRadius); y++)
-                    {
+                    randomDirection = (float)prng.NextDouble() * 2 * Mathf.PI;
+                    xPos = (float)x + (jitterDistance * Mathf.Cos(randomDirection));
+                    yPos = (float)y + (jitterDistance * Mathf.Sin(randomDirection));
+                    jitterPoint = new Vector2(xPos, yPos);
+                }
+                float distance = Vector2.Distance(centerPoint, jitterPoint);
+                if (distance < r)
+                {
+                    Biome biome = getBiome(jitterPoint, chunkPosition);
 
-                        if (biomeColors[x, y].Equals(Color.clear))
+                    for (int wx = (int)Mathf.Max(0, jitterPoint.x - worldPointRadius); wx < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoint.x + worldPointRadius); wx++)
+                    {
+                        for (int wy = (int)Mathf.Max(0, jitterPoint.y - worldPointRadius); wy < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoint.y + worldPointRadius); wy++)
                         {
-                            biomeColors[x, y] = biome.color.Evaluate(heightMap[x, y]);
-                        } else
-                        {
-                            distance = Vector2.Distance(new Vector2(x, y), jitterPoints[i]);
-                            distance = Mathf.InverseLerp(0, worldPointRadius, distance);
-                            float biomeBlendNoise = SampleHeightMap(biomeBlendMapSettings, new Vector2(x, y), chunkPosition);
-                            float finalWeight = (1 - distance) * biomeBlendNoise + 0.01f;
-                            Color biomeColor = biome.color.Evaluate(heightMap[x, y]);
-                            //print(biomeColors[x, y]);
-                            biomeColors[x, y] = Color.Lerp(biomeColors[x, y], biomeColor, finalWeight);
+
+                            if (biomeColors[wx, wy].Equals(Color.clear))
+                            {
+                                biomeColors[wx, wy] = biome.color.Evaluate(heightMap[wx, wy]);
+                            }
+                            else
+                            {
+                                distance = Vector2.Distance(new Vector2(wx, wy), jitterPoint);
+                                distance = Mathf.InverseLerp(0, worldPointRadius, distance);
+                                float biomeBlendNoise = SampleHeightMap(biomeBlendMapSettings, new Vector2(wx, wy), chunkPosition);
+                                float finalWeight = (1 - distance) * biomeBlendNoise + 0.01f;
+                                Color biomeColor = biome.color.Evaluate(heightMap[wx, wy]);
+                                //print(biomeColors[x, y]);
+                                biomeColors[wx, wy] = Color.Lerp(biomeColors[wx, wy], biomeColor, finalWeight);
+                            }
                         }
                     }
                 }
