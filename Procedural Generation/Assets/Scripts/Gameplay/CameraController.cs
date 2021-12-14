@@ -88,7 +88,7 @@ public class CameraController : MonoBehaviour
                 }
                 else
                 {
-                    Chunk newChunk = worldGen.RequestChunk((int)chunkCoord.x, (int)chunkCoord.y);
+                    Chunk newChunk = worldGen.GenerateChunkImmediate((int)chunkCoord.x, (int)chunkCoord.y);
                     chunkDictionary.Add(chunkCoord, newChunk);
                     //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
 

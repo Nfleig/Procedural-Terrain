@@ -7,6 +7,8 @@ using System.Threading;
 public class WorldGenerator : MonoBehaviour
 {
     public GameObject chunkObject;
+    public ComputeShader biomeShader;
+    public ComputeShader terrainShader;
     public int xSize = 16;
     public int zSize = 16;
     public MapSettings heightMapSettings;
@@ -224,7 +226,8 @@ public class WorldGenerator : MonoBehaviour
     {
 
         Vector2 chunkPosition = new Vector2(x, y);
-        float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
+        //float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
+        float[,] heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
         float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
         float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
         Color[] colorMap;
@@ -251,11 +254,12 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-    void GenerateChunkImmediate(int x, int y)
+    public Chunk GenerateChunkImmediate(int x, int y)
     {
         ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
         Vector2 chunkPosition = new Vector2(x, y);
-        float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
+        //float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
+        float[,] heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
         float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
         float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
         Color[] colorMap;
@@ -274,6 +278,7 @@ public class WorldGenerator : MonoBehaviour
             }
         }
         GenerateChunk(new MapData(heightMap, colorMap, newChunk));
+        return newChunk.GetComponent<Chunk>();
     }
 
 
@@ -356,6 +361,63 @@ public class WorldGenerator : MonoBehaviour
                 heightMap[x, y] = heightCurve.Evaluate(noiseHeight / sumAmplitudes);
             }
         }
+        return heightMap;
+    }
+
+    public RenderTexture renderTexture;
+    public Texture2D mapTexture;
+    public float[,] GPUHeightMap(MapSettings settings, Vector2 position)
+    {
+        renderTexture = new RenderTexture(settings.size + 2, settings.size + 2, 24);
+        renderTexture.enableRandomWrite = true;
+        renderTexture.Create();
+
+        int kernel = terrainShader.FindKernel("CSMain");
+        terrainShader.SetTexture(kernel, "Result", renderTexture);
+        Octave[] octaves = settings.getOctaveArray();
+        terrainShader.SetFloats("ChunkPosition", position.x, position.y);
+        terrainShader.SetFloats("Offset", settings.offset.x, settings.offset.y);
+        terrainShader.SetFloat("Scale", settings.scale);
+        terrainShader.SetFloat("Size", settings.size);
+        terrainShader.SetInt("OctaveCount", octaves.Length);
+        terrainShader.SetFloat("Resolution", renderTexture.width);
+        int vectorSize = sizeof(float) * 2;
+        int totalSize = (sizeof(float) * 2) + vectorSize;
+        ComputeBuffer octaveBuffer = new ComputeBuffer(octaves.Length, totalSize);
+        octaveBuffer.SetData(octaves);
+        terrainShader.SetBuffer(kernel, "Octaves", octaveBuffer);
+        /*
+        int pointSize = sizeof(float) * 3;
+        ComputeBuffer pointBuffer = new ComputeBuffer((int)Mathf.Pow(settings.size + 1, 2), pointSize);
+        terrainShader.SetBuffer(kernel, "Result", pointBuffer);
+        */
+        terrainShader.Dispatch(kernel, renderTexture.width / 8, renderTexture.height / 8, 1);
+        //Vector3[] pointArray = new Vector3[(int)Mathf.Pow(settings.size + 1, 2)];
+        //pointBuffer.GetData(pointArray);
+        float[,] heightMap = new float[settings.size + 2, settings.size + 2];
+        /*
+        foreach (Vector3 point in pointArray)
+        {
+            print(point);
+            heightMap[(int)point.x, (int)point.z] = settings.curve.Evaluate(point.y);
+        }
+        */
+        mapTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGB24, false);
+        RenderTexture.active = renderTexture;
+        mapTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        RenderTexture.active = null;
+        for (int x = 0; x < mapTexture.width; x++)
+        {
+            for (int y = 0; y < mapTexture.height; y++)
+            {
+                float height = mapTexture.GetPixel(x, y).r - 0.5f;
+                //print(mapTexture.GetPixel(x, y).r);
+                heightMap[x, y] = height;
+            }
+        }
+        //pointBuffer.Dispose();
+        octaveBuffer.Dispose();
+
         return heightMap;
     }
 
@@ -523,7 +585,6 @@ public class WorldGenerator : MonoBehaviour
     public Color[] GenerateBiomeBlendMap(Vector2 chunkPosition, float[,] heightMap)
     {
         float jitterDistance = biomeBlendRange;
-        int i = 0;
         float chunkRadius = Vector2.Distance(new Vector2(0, 0), new Vector2(heightMapSettings.size / 2, heightMapSettings.size / 2));
         float r = 2 + (2 * jitterDistance) + 1f + chunkRadius;
         //print(SampleHeightMap(temperatureMapSettings, new Vector2(64.1f, 64.1f), new Vector2(0, 0)) == SampleHeightMap(temperatureMapSettings, new Vector2(0.1f, 0.1f), new Vector2(1, 1)));
@@ -532,7 +593,6 @@ public class WorldGenerator : MonoBehaviour
         float yPos = (heightMapSettings.size / 2 + 3) + (jitterDistance * Mathf.Sin(randomDirection));
         Vector2 centerPoint = new Vector2(xPos, yPos);
 
-        List<Vector2> jitterPoints = new List<Vector2>();
         Color[,] biomeColors = new Color[heightMapSettings.size + 1, heightMapSettings.size + 1];
         float worldPointRadius = 10f;
         for (int x = (int)((heightMapSettings.size / 2) - chunkRadius); x <= (heightMapSettings.size / 2) + chunkRadius; x += 4)
@@ -583,7 +643,7 @@ public class WorldGenerator : MonoBehaviour
             }
         }
         Color[] finalColors = new Color[(int)Math.Pow(heightMapSettings.size + 1, 2)];
-        i = 0;
+        int i = 0;
         for (int y = 0; y <= heightMapSettings.size; y++)
         {
             for (int x = 0; x <= heightMapSettings.size; x++)
@@ -594,6 +654,13 @@ public class WorldGenerator : MonoBehaviour
         }
         return finalColors;
     }
+
+    public struct JitteredVertex
+    {
+        Vector3 position;
+        float biome;
+    }
+
 
     public Biome getBiome(float temperature, float moisture)
     {

@@ -1,0 +1,42 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+struct ColorKey {
+    float4 color;
+    float time;
+};
+
+struct Gradient {
+    ColorKey[] keys;
+};
+
+struct JitteredVertex {
+    float2 position;
+    int biome;
+};
+
+struct Vertex {
+    float3 position;
+    float4 color;
+};
+
+RWStructuredBuffer<JitteredVertex> jitteredPoints;
+RWStructuredBuffer<Vertex> points;
+RWStructuredBuffer<Gradient> gradients;
+
+[numthreads(10,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    Vertex x = points[id.x];
+    for (int i = 0; i < jitteredPoints.Length; i++) {
+        if (jitteredPoints[i].)
+    }
+}
+
+float Distance(float2 jitteredPoint, float3 regularPoint) {
+    float distance = sqrt(1);
+}

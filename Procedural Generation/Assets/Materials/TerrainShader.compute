@@ -1,0 +1,101 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+#include "Packages/jp.keijiro.noiseshader/Shader/ClassicNoise2D.hlsl"
+
+RWTexture2D<float4> Result;
+
+struct Octave {
+    float frequency;
+    float2 offset;
+    float amplitude;
+};
+
+RWStructuredBuffer<Octave> Octaves;
+float2 Offset;
+float Scale;
+float Size;
+float2 ChunkPosition;
+int OctaveCount;
+float Resolution;
+
+float OldCalculateNoise(float2 position)
+{
+	float2 offset = Offset + (ChunkPosition * Size);
+	float mapSize = Size;
+	float noiseHeight = 0;
+	float sumAmplitudes = 0;
+	for (int i = 0; i < OctaveCount; i++)
+	{
+		float noiseX = ((float) position.x + Offset.x) / ((float) mapSize * Scale) - 0.5;
+		float noiseY = ((float) position.y + Offset.y) / ((float) mapSize * Scale) - 0.5;
+		noiseHeight += Octaves[i].amplitude * (ClassicNoise(float2(noiseX * Octaves[i].frequency + Octaves[i].offset.x, noiseY * Octaves[i].frequency + Octaves[i].offset.y)));
+		sumAmplitudes += Octaves[i].amplitude;
+	}
+	return noiseHeight / sumAmplitudes;
+}
+
+float CalculateNoise(float2 position)
+{
+	float mapSize = Size;
+	float2 chunkPosition = ChunkPosition;
+	while (position.x < 0)
+	{
+		chunkPosition.x -= 1;
+		position.x += Size;
+	}
+	while (position.x > Size)
+	{
+		chunkPosition.x += 1;
+		position.x -= Size;
+	}
+	while (position.y < 0)
+	{
+		chunkPosition.y -= 1;
+		position.y += Size;
+	}
+	while (position.y > Size)
+	{
+		chunkPosition.y += 1;
+		position.y -= Size;
+	}
+	float2 offset = Offset + chunkPosition;
+	float height;
+	float noiseHeight = 0;
+	float sumAmplitudes = 0;
+	for (int i = 0; i < OctaveCount; i++)
+	{
+		float noiseX = (position.x + offset.x);
+		float noiseY = (position.y + offset.y);
+		noiseHeight += Octaves[i].amplitude * ClassicNoise(float2(noiseX * Octaves[i].frequency + Octaves[i].offset.x, noiseY * Octaves[i].frequency + Octaves[i].offset.y)) / 2 + 0.0875f;
+		sumAmplitudes += Octaves[i].amplitude;
+	}
+	height = noiseHeight / sumAmplitudes;
+	return height;
+
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+	/*
+    int i = 0;
+    for (int x = id.x * 8; x < (id.x + 1) * 8; x++) {
+        for (int y = id.y * 8; y < (id.x + 1) * 8; y++) {
+			Result[i] = float3(x, CalculateNoise(float2(x, y)), y);
+			i++;
+		}
+    }
+*/
+	float x = id.x / Resolution;
+	float y = id.y / Resolution;
+	float noise = CalculateNoise(float2(x, y));
+	Result[id.xy] = float4(noise, noise, noise, 0.0);
+	//Result[id.xy] = float4(x, y, 0.0, 0.0);
+	//Result[id.xy] = float4(id.x & id.y, (id.x & 15) / 15.0, (id.y & 15) / 15.0, 0.0);
+
+}
+

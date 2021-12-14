@@ -1,2 +1,278 @@
 Base path: 'C:/Program Files/Unity/Hub/Editor/2019.3.5f1/Editor/Data', plugins path 'C:/Program Files/Unity/Hub/Editor/2019.3.5f1/Editor/Data/PlaybackEngines'
 Cmd: initializeCompiler
+Cmd: preprocessCompute
+  insize=2681 outsize=2680 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2680 outsize=3260 ok=1
+Cmd: preprocessCompute
+  insize=2691 outsize=2690 ok=1
+Cmd: preprocessCompute
+  insize=2683 outsize=2682 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(72): 'ClassicNoise': no matching 0 parameter function
+  error: 2 plat 4 at TerrainShader.compute(72): syntax error: unexpected token ';'
+  api=4 insize=2682 outsize=0 ok=0
+Cmd: preprocessCompute
+  insize=2694 outsize=2693 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2693 outsize=3080 ok=1
+Cmd: preprocessCompute
+  insize=2692 outsize=2691 ok=1
+Cmd: preprocessCompute
+  insize=2692 outsize=2691 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2691 outsize=2043 ok=1
+Cmd: preprocessCompute
+  insize=2697 outsize=2696 ok=1
+Cmd: preprocessCompute
+  insize=2694 outsize=2693 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2693 outsize=3188 ok=1
+Cmd: preprocessCompute
+  insize=2704 outsize=2703 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2703 outsize=2548 ok=1
+Cmd: preprocessCompute
+  insize=2712 outsize=2711 ok=1
+Cmd: preprocessCompute
+  insize=2689 outsize=2688 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2688 outsize=2349 ok=1
+Cmd: preprocessCompute
+  insize=2706 outsize=2705 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2705 outsize=2393 ok=1
+Cmd: preprocessCompute
+  insize=2705 outsize=2704 ok=1
+Cmd: preprocessCompute
+  insize=2687 outsize=2686 ok=1
+Cmd: preprocessCompute
+  insize=2706 outsize=2705 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2705 outsize=2393 ok=1
+Cmd: preprocessCompute
+  insize=2699 outsize=2698 ok=1
+Cmd: preprocessCompute
+  insize=2699 outsize=2698 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2698 outsize=2449 ok=1
+Cmd: preprocessCompute
+  insize=2683 outsize=2682 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2682 outsize=2421 ok=1
+Cmd: preprocessCompute
+  insize=2673 outsize=2672 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2672 outsize=2865 ok=1
+Cmd: preprocessCompute
+  insize=2665 outsize=2664 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2664 outsize=2865 ok=1
+Cmd: preprocessCompute
+  insize=2671 outsize=2670 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2670 outsize=2897 ok=1
+Cmd: preprocessCompute
+  insize=2689 outsize=2688 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2688 outsize=2914 ok=1
+Cmd: preprocessCompute
+  insize=2679 outsize=2678 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2678 outsize=2865 ok=1
+Cmd: preprocessCompute
+  insize=2679 outsize=2678 ok=1
+Cmd: preprocessCompute
+  insize=2657 outsize=2656 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2656 outsize=2865 ok=1
+Cmd: preprocessCompute
+  insize=2639 outsize=2638 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(45): undeclared identifier 'chunkPosition'
+  api=4 insize=2638 outsize=0 ok=0
+Cmd: preprocessCompute
+  insize=2691 outsize=2690 ok=1
+Cmd: preprocessCompute
+  insize=2741 outsize=2740 ok=1
+Cmd: preprocessCompute
+  insize=2745 outsize=2744 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2744 outsize=474 ok=1
+Cmd: preprocessCompute
+  insize=2745 outsize=2744 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2744 outsize=474 ok=1
+Cmd: preprocessCompute
+  insize=2738 outsize=2737 ok=1
+Cmd: preprocessCompute
+  insize=2734 outsize=2733 ok=1
+Cmd: preprocessCompute
+  insize=2734 outsize=2733 ok=1
+Cmd: preprocessCompute
+  insize=2752 outsize=2751 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(66): syntax error: unexpected token 'float'
+  error: 2 plat 4 at TerrainShader.compute(76): undeclared identifier 'height'
+  api=4 insize=2751 outsize=0 ok=0
+Cmd: preprocessCompute
+  insize=2753 outsize=2752 ok=1
+Cmd: preprocessCompute
+  insize=2757 outsize=2756 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2756 outsize=942 ok=1
+Cmd: preprocessCompute
+  insize=2757 outsize=2756 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(65): 'CalculateNoise': function must return a value
+  error: 2 plat 4 at TerrainShader.compute(65): undeclared identifier 'y'
+  api=4 insize=2756 outsize=0 ok=0
+Cmd: preprocessCompute
+  insize=2760 outsize=2759 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2759 outsize=946 ok=1
+Cmd: preprocessCompute
+  insize=2764 outsize=2763 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2763 outsize=974 ok=1
+Cmd: preprocessCompute
+  insize=2751 outsize=2750 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(72): syntax error: unexpected token 'float'
+  api=4 insize=2750 outsize=0 ok=0
+Cmd: preprocessCompute
+  insize=2752 outsize=2751 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(68): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(76): floating point division by zero
+  api=4 insize=2751 outsize=1166 ok=1
+Cmd: preprocessCompute
+  insize=2752 outsize=2751 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(71): 'CalculateNoise': function must return a value
+  error: 2 plat 4 at TerrainShader.compute(71): undeclared identifier 'noiseY'
+  api=4 insize=2751 outsize=0 ok=0
+Cmd: preprocessCompute
+  insize=2758 outsize=2757 ok=1
+Cmd: preprocessCompute
+  insize=2757 outsize=2756 ok=1
+Cmd: preprocessCompute
+  insize=2756 outsize=2755 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(68): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(76): floating point division by zero
+  api=4 insize=2755 outsize=826 ok=1
+Cmd: preprocessCompute
+  insize=2752 outsize=2751 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(68): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(76): floating point division by zero
+  api=4 insize=2751 outsize=1166 ok=1
+Cmd: preprocessCompute
+  insize=2767 outsize=2766 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(68): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(76): floating point division by zero
+  api=4 insize=2766 outsize=1045 ok=1
+Cmd: preprocessCompute
+  insize=2774 outsize=2773 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(68): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(76): floating point division by zero
+  api=4 insize=2773 outsize=1073 ok=1
+Cmd: preprocessCompute
+  insize=2774 outsize=2773 ok=1
+Cmd: preprocessCompute
+  insize=2769 outsize=2768 ok=1
+Cmd: preprocessCompute
+  insize=2773 outsize=2772 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(68): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(76): floating point division by zero
+  api=4 insize=2772 outsize=1073 ok=1
+Cmd: preprocessCompute
+  insize=2764 outsize=2763 ok=1
+Cmd: preprocessCompute
+  insize=2725 outsize=2724 ok=1
+Cmd: preprocessCompute
+  insize=2717 outsize=2716 ok=1
+Cmd: preprocessCompute
+  insize=2703 outsize=2702 ok=1
+Cmd: preprocessCompute
+  insize=2647 outsize=2646 ok=1
+Cmd: preprocessCompute
+  insize=2638 outsize=2637 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2637 outsize=487 ok=1
+Cmd: preprocessCompute
+  insize=2724 outsize=2723 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2723 outsize=461 ok=1
+Cmd: preprocessCompute
+  insize=2724 outsize=2723 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2723 outsize=3220 ok=1
+Cmd: preprocessCompute
+  insize=2730 outsize=2729 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2729 outsize=3220 ok=1
+Cmd: preprocessCompute
+  insize=2732 outsize=2731 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2731 outsize=3228 ok=1
+Cmd: preprocessCompute
+  insize=2726 outsize=2725 ok=1
+Cmd: preprocessCompute
+  insize=2731 outsize=2730 ok=1
+Cmd: preprocessCompute
+  insize=2731 outsize=2730 ok=1
+Cmd: preprocessCompute
+  insize=2739 outsize=2738 ok=1
+Cmd: preprocessCompute
+  insize=2741 outsize=2740 ok=1
+Cmd: preprocessCompute
+  insize=2734 outsize=2733 ok=1
+Cmd: preprocessCompute
+  insize=2742 outsize=2741 ok=1
+Cmd: preprocessCompute
+  insize=2741 outsize=2740 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2740 outsize=3248 ok=1
+Cmd: preprocessCompute
+  insize=2742 outsize=2741 ok=1
+Cmd: preprocessCompute
+  insize=2743 outsize=2742 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2742 outsize=3248 ok=1
+Cmd: preprocessCompute
+  insize=2844 outsize=2843 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2843 outsize=3185 ok=1
+Cmd: preprocessCompute
+  insize=2849 outsize=2848 ok=1
+Cmd: preprocessCompute
+  insize=2734 outsize=2733 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2733 outsize=3248 ok=1
+Cmd: preprocessCompute
+  insize=2733 outsize=2732 ok=1
+Cmd: preprocessCompute
+  insize=2733 outsize=2732 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2732 outsize=3248 ok=1
+Cmd: preprocessCompute
+  insize=2734 outsize=2733 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2733 outsize=3248 ok=1
+Cmd: preprocessCompute
+  insize=2735 outsize=2734 ok=1
+Cmd: preprocessCompute
+  insize=2739 outsize=2738 ok=1
+Cmd: preprocessCompute
+  insize=2740 outsize=2739 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2739 outsize=3248 ok=1
+Cmd: preprocessCompute
+  insize=2767 outsize=2766 ok=1
+Cmd: compileComputeKernel
+  api=4 insize=2766 outsize=3236 ok=1
