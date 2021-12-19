@@ -1,5 +1,8 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+#pragma kernel HeightMap
+#pragma kernel BiomeMap
+#pragma kernel BiomeBlendMap
+#pragma kernel JitterPoints
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 
@@ -7,34 +10,106 @@
 
 RWTexture2D<float4> Result;
 
-struct Octave {
-    float frequency;
-    float2 offset;
-    float amplitude;
+struct ChunkMap
+{
+	RWTexture2D<float4> MapTexture;
+	float2 ChunkPosition;
 };
 
-RWStructuredBuffer<Octave> Octaves;
+struct Biome
+{
+	float temperature;
+	float moisture;
+};
+
+struct Octave
+{
+	float frequency;
+	float2 offset;
+	float amplitude;
+};
+
+struct GPUMapSettings
+{
+	float Scale;
+	float Size;
+	float2 Offset;
+	int OctaveCount;
+	StructuredBuffer<Octave> Octaves;
+	Texture2D<float4> Curve;
+};
+
+
+
+StructuredBuffer<Octave> Octaves;
+StructuredBuffer<float3> jitteredPoints;
+StructuredBuffer<Biome> Biomes;
+int BiomeLength;
 float2 Offset;
 float Scale;
 float Size;
 float2 ChunkPosition;
 int OctaveCount;
 float Resolution;
+float CurveResolution;
+RWTexture2D<float4> HeightMapTexture;
+RWTexture2D<float4> ColorMapTexture;
+Texture2D<float4> HeightCurveTexture;
+Texture2D<float4> BiomeGradientTexture;
 
-float OldCalculateNoise(float2 position)
+int GetBiome(float2 position)
 {
-	float2 offset = Offset + (ChunkPosition * Size);
-	float mapSize = Size;
+	float temperature = 0;
+	float moisture = 0;
+	for (int i = 0; i < BiomeLength; i++)
+	{
+		if (temperature <= Biomes[i].temperature)
+		{
+			if (moisture <= Biomes[i].moisture)
+			{
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+float CalculateNoise(GPUMapSettings settings, float2 position)
+{
+	float mapSize = settings.Size;
+	float2 chunkPosition = ChunkPosition;
+	while (position.x < 0)
+	{
+		chunkPosition.x -= 1;
+		position.x += Size;
+	}
+	while (position.x > Size)
+	{
+		chunkPosition.x += 1;
+		position.x -= Size;
+	}
+	while (position.y < 0)
+	{
+		chunkPosition.y -= 1;
+		position.y += Size;
+	}
+	while (position.y > Size)
+	{
+		chunkPosition.y += 1;
+		position.y -= Size;
+	}
+	float2 offset = settings.Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
+	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
-	for (int i = 0; i < OctaveCount; i++)
+	for (int i = 0; i < settings.OctaveCount; i++)
 	{
-		float noiseX = ((float) position.x + Offset.x) / ((float) mapSize * Scale) - 0.5;
-		float noiseY = ((float) position.y + Offset.y) / ((float) mapSize * Scale) - 0.5;
-		noiseHeight += Octaves[i].amplitude * (ClassicNoise(float2(noiseX * Octaves[i].frequency + Octaves[i].offset.x, noiseY * Octaves[i].frequency + Octaves[i].offset.y)));
-		sumAmplitudes += Octaves[i].amplitude;
+		float noiseX = (position.x + offset.x);
+		float noiseY = (position.y + offset.y);
+		noiseHeight += settings.Octaves[i].amplitude * ClassicNoise(float2(noiseX * settings.Octaves[i].frequency + settings.Octaves[i].offset.x, noiseY * settings.Octaves[i].frequency + settings.Octaves[i].offset.y)) / 2 + 0.0875f;
+		sumAmplitudes += settings.Octaves[i].amplitude;
 	}
-	return noiseHeight / sumAmplitudes;
+	height = noiseHeight / sumAmplitudes;
+	return height;
 }
 
 float CalculateNoise(float2 position)
@@ -61,7 +136,7 @@ float CalculateNoise(float2 position)
 		chunkPosition.y += 1;
 		position.y -= Size;
 	}
-	float2 offset = Offset + chunkPosition;
+	float2 offset = Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
 	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
@@ -74,28 +149,54 @@ float CalculateNoise(float2 position)
 	}
 	height = noiseHeight / sumAmplitudes;
 	return height;
+}
+
+[numthreads(10, 1, 1)]
+void JitterPoints(uint3 id : SV_DispatchThreadID)
+{
+	float3 oldPoint = jitteredPoints[id.x];
+	float x = oldPoint.x / Resolution;
+	float y = oldPoint.y / Resolution;
+	float dir = oldPoint.z;
+	
+	float dist = 0.1f;
+	
+	float3 newPoint = float3(x + (cos(dir) * dist), y + (cos(dir) * dist), 0.0);
 
 }
 
-[numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+[numthreads(8, 8, 1)]
+void BiomeMap(uint3 id : SV_DispatchThreadID)
 {
-    // TODO: insert actual code here!
-	/*
-    int i = 0;
-    for (int x = id.x * 8; x < (id.x + 1) * 8; x++) {
-        for (int y = id.y * 8; y < (id.x + 1) * 8; y++) {
-			Result[i] = float3(x, CalculateNoise(float2(x, y)), y);
-			i++;
-		}
-    }
-*/
+	float height = HeightMapTexture[id.xy];
+	float x = id.x / Resolution;
+	float y = id.y / Resolution;
+	
+	int biome = GetBiome(float2(x, y));
+	if (biome != -1)
+	{
+		int gradientIndex = (int) (HeightMapTexture[id.xy] * 100);
+		ColorMapTexture[id.xy] = BiomeGradientTexture[int2(gradientIndex, biome)];
+	}
+
+}
+
+[numthreads(8, 8, 1)]
+void BiomeBlendMap(uint3 id : SV_DispatchThreadID)
+{
+	
+}
+
+[numthreads(8, 8, 1)]
+void HeightMap(uint3 id : SV_DispatchThreadID)
+{
 	float x = id.x / Resolution;
 	float y = id.y / Resolution;
 	float noise = CalculateNoise(float2(x, y));
-	Result[id.xy] = float4(noise, noise, noise, 0.0);
-	//Result[id.xy] = float4(x, y, 0.0, 0.0);
-	//Result[id.xy] = float4(id.x & id.y, (id.x & 15) / 15.0, (id.y & 15) / 15.0, 0.0);
+	int curveIndex = (int) (noise * CurveResolution);
+	noise = HeightCurveTexture[int2(curveIndex, 0)];
+	HeightMapTexture[id.xy] = float4(noise, noise, noise, 0.0);
+	//Result[id.xy] = float4(curveIndex / 99.5, 0, 0, 0);
 
 }
 

@@ -10,7 +10,7 @@ struct ColorKey {
 };
 
 struct Gradient {
-    ColorKey[] keys;
+    StructuredBuffer<ColorKey> keys;
 };
 
 struct JitteredVertex {

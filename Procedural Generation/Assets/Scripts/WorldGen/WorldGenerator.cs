@@ -28,11 +28,15 @@ public class WorldGenerator : MonoBehaviour
     public Gradient testGradient;
     public bool drawBiomes;
     public bool useBiomeBlending;
+    public bool useGPU;
+    public int GPUCurveResolution;
     public Biome[] biomes;
     public float biomeBlendRange;
     private System.Random prng;
     float minimumHeight = Mathf.Infinity;
     float maximumHeight = -Mathf.Infinity;
+    public Texture2D heightCurveTexture;
+    public Texture2D biomeGradientTexture;
 
     Queue<MapThreadInfo> mapDataThreadInfoQueue = new Queue<MapThreadInfo>();
     
@@ -141,7 +145,6 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-
     public void Awake()
     {
         //CreateWorld();
@@ -159,6 +162,8 @@ public class WorldGenerator : MonoBehaviour
         moistureMapSettings.GenerateOctaveArray(prng);
         biomeBlendMapSettings.GenerateOctaveArray(prng);
         Array.Sort(biomes, CompareTemperatures);
+        InitializeTerrainShader();
+        ChunkGenerator.depth = depth;
         
 
     }
@@ -209,7 +214,56 @@ public class WorldGenerator : MonoBehaviour
     public void GenerateChunk(MapData mapData)
     {
         ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
-        newChunk.GenerateTerrain(mapData.heightMap, heightMapSettings.size, heightMapSettings.size, scale, depth, mapData.colorMap);
+        //newChunk.GenerateTerrain(mapData.heightMap, heightMapSettings.size, heightMapSettings.size, scale, depth, mapData.colorMap);
+        newChunk.InitializeTerrain(heightMapSettings.size, heightMapSettings.size, scale);
+    }
+
+    public Chunk GPUGenerateChunk(int x, int y)
+    {
+        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
+        newChunk.InitializeTerrain(heightMapSettings.size, heightMapSettings.size, heightMapSettings.scale);
+
+        terrainShader.SetTexture(0, "HeightMapTexture", newChunk.heightMapTexture);
+        terrainShader.SetTexture(0, "ColorMapTexture", newChunk.colorMapTexture);
+        terrainShader.SetFloats("ChunkPosition", x, y);
+        terrainShader.Dispatch(0, newChunk.heightMapTexture.width / 5, newChunk.heightMapTexture.width / 5, 1);
+        return newChunk.GetComponent<Chunk>();
+    }
+
+    public Texture2D BakeCurve(AnimationCurve c)
+    {
+        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 1);
+        for (int i = 0; i < curveTexture.width; i++)
+        {
+            float curveValue = c.Evaluate((float)i / (float)curveTexture.width);
+            curveTexture.SetPixel(i, 0, new Color(curveValue, curveValue, curveValue));
+            //print(heightCurveTexture.GetPixel(i, 0));
+        }
+        curveTexture.Apply();
+        return curveTexture;
+    }
+
+    public Texture2D BakeBiomes()
+    {
+        Texture2D curveTexture = new Texture2D(GPUCurveResolution, biomes.Length);
+        for (int y = 0; y < biomes.Length; y++)
+        {
+            for (int x = 0; x < curveTexture.width; x++)
+            {
+                Color gradientValue = biomes[y].color.Evaluate((float)x / (float)curveTexture.width);
+                curveTexture.SetPixel(x, y, gradientValue);
+                //print(heightCurveTexture.GetPixel(i, 0));
+            }
+        }
+        curveTexture.Apply();
+        return curveTexture;
+    }
+
+    public void GenerateChunk(MapData mapData, Texture2D texture)
+    {
+
+        ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
+        newChunk.GenerateTerrain(texture);
     }
 
     void RequestChunk(int x, int y, ChunkGenerator chunk, Action<MapData> callback)
@@ -226,8 +280,14 @@ public class WorldGenerator : MonoBehaviour
     {
 
         Vector2 chunkPosition = new Vector2(x, y);
-        //float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
-        float[,] heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
+        float[,] heightMap;
+        if (useGPU)
+        {
+            heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
+        } else
+        {
+            heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
+        }
         float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
         float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
         Color[] colorMap;
@@ -237,7 +297,7 @@ public class WorldGenerator : MonoBehaviour
         }
         else
         {
-            if (isOneBiome(temperatureMap, moistureMap))
+            if (IsOneBiome(temperatureMap, moistureMap))
             {
                 colorMap = GenerateSingleBiomeColorMap(heightMap, chunkPosition);
             }
@@ -254,12 +314,20 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
+    
     public Chunk GenerateChunkImmediate(int x, int y)
     {
         ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
         Vector2 chunkPosition = new Vector2(x, y);
-        //float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
-        float[,] heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
+        float[,] heightMap;
+        if (useGPU)
+        {
+            heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
+        }
+        else
+        {
+            heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
+        }
         float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
         float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
         Color[] colorMap;
@@ -269,7 +337,7 @@ public class WorldGenerator : MonoBehaviour
         }
         else
         {
-            if (isOneBiome(temperatureMap, moistureMap))
+            if (IsOneBiome(temperatureMap, moistureMap))
             {
                 colorMap = GenerateSingleBiomeColorMap(heightMap, chunkPosition);
             } else
@@ -278,7 +346,10 @@ public class WorldGenerator : MonoBehaviour
             }
         }
         GenerateChunk(new MapData(heightMap, colorMap, newChunk));
-        return newChunk.GetComponent<Chunk>();
+        Chunk chunk = newChunk.GetComponent<Chunk>();
+        chunk.xPosition = x;
+        chunk.yPosition = y;
+        return chunk;
     }
 
 
@@ -298,10 +369,11 @@ public class WorldGenerator : MonoBehaviour
         {
             for (int z = 0; z < zSize; z++)
             {
-                GenerateChunkImmediate(x, z);
+                GPUGenerateChunk(x, z);
 
             }
         }
+        octaveBuffer.Dispose();
     }
 
     /*
@@ -364,44 +436,99 @@ public class WorldGenerator : MonoBehaviour
         return heightMap;
     }
 
-    public RenderTexture renderTexture;
-    public Texture2D mapTexture;
-    public float[,] GPUHeightMap(MapSettings settings, Vector2 position)
+    GPUMapSettings ConvertToGPUSettings(MapSettings settings)
     {
+        GPUMapSettings mapSettings = new GPUMapSettings();
+        Octave[] octaves = settings.getOctaveArray();
+        mapSettings.Size = settings.size;
+        mapSettings.Scale = settings.scale;
+        mapSettings.Offset = settings.offset;
+        mapSettings.OctaveCount = octaves.Length;
+        int vectorSize = sizeof(float) * 2;
+        int totalSize = (sizeof(float) * 2) + vectorSize;
+        mapSettings.Octaves = new ComputeBuffer(octaves.Length, totalSize);
+        mapSettings.Octaves.SetData(octaves);
+        return mapSettings;
+    }
+
+    struct GPUBiome
+    {
+        public float temperature;
+        public float moisture;
+
+        public GPUBiome(float temperature, float moisture)
+        {
+            this.temperature = temperature;
+            this.moisture = moisture;
+        }
+    }
+
+    struct GPUMapSettings
+    {
+        public float Scale;
+        public float Size;
+        public Vector2 Offset;
+        public int OctaveCount;
+        public ComputeBuffer Octaves;
+        public Texture2D Curve;
+    }
+
+    void InitializeTerrainShader()
+    {
+        MapSettings settings = heightMapSettings;
         renderTexture = new RenderTexture(settings.size + 2, settings.size + 2, 24);
         renderTexture.enableRandomWrite = true;
         renderTexture.Create();
 
-        int kernel = terrainShader.FindKernel("CSMain");
+        int kernel = terrainShader.FindKernel("HeightMap");
         terrainShader.SetTexture(kernel, "Result", renderTexture);
-        Octave[] octaves = settings.getOctaveArray();
-        terrainShader.SetFloats("ChunkPosition", position.x, position.y);
         terrainShader.SetFloats("Offset", settings.offset.x, settings.offset.y);
         terrainShader.SetFloat("Scale", settings.scale);
         terrainShader.SetFloat("Size", settings.size);
-        terrainShader.SetInt("OctaveCount", octaves.Length);
         terrainShader.SetFloat("Resolution", renderTexture.width);
+        terrainShader.SetFloat("CurveResolution", GPUCurveResolution);
+
+        Octave[] octaves = settings.getOctaveArray();
+        terrainShader.SetInt("OctaveCount", octaves.Length);
         int vectorSize = sizeof(float) * 2;
         int totalSize = (sizeof(float) * 2) + vectorSize;
-        ComputeBuffer octaveBuffer = new ComputeBuffer(octaves.Length, totalSize);
+        octaveBuffer = new ComputeBuffer(octaves.Length, totalSize);
         octaveBuffer.SetData(octaves);
         terrainShader.SetBuffer(kernel, "Octaves", octaveBuffer);
-        /*
-        int pointSize = sizeof(float) * 3;
-        ComputeBuffer pointBuffer = new ComputeBuffer((int)Mathf.Pow(settings.size + 1, 2), pointSize);
-        terrainShader.SetBuffer(kernel, "Result", pointBuffer);
-        */
-        terrainShader.Dispatch(kernel, renderTexture.width / 8, renderTexture.height / 8, 1);
-        //Vector3[] pointArray = new Vector3[(int)Mathf.Pow(settings.size + 1, 2)];
-        //pointBuffer.GetData(pointArray);
-        float[,] heightMap = new float[settings.size + 2, settings.size + 2];
-        /*
-        foreach (Vector3 point in pointArray)
+
+        GPUBiome[] GPUBiomes = new GPUBiome[biomes.Length];
+        for (int i = 0; i < GPUBiomes.Length; i++)
         {
-            print(point);
-            heightMap[(int)point.x, (int)point.z] = settings.curve.Evaluate(point.y);
+            GPUBiomes[i] = new GPUBiome(biomes[i].temperature, biomes[i].moisture);
         }
-        */
+        int biomeSize = sizeof(float) * 2;
+        biomeBuffer = new ComputeBuffer(biomes.Length, biomeSize);
+        biomeBuffer.SetData(GPUBiomes);
+        terrainShader.SetBuffer(kernel, "Biomes", biomeBuffer);
+        terrainShader.SetInt("BiomeLength", biomes.Length);
+        
+        heightCurveTexture = BakeCurve(heightMapSettings.curve);
+        terrainShader.SetTexture(kernel, "HeightCurveTexture", heightCurveTexture);
+        biomeGradientTexture = BakeBiomes();
+        terrainShader.SetTexture(kernel, "BiomeGradientTexture", biomeGradientTexture);
+
+
+
+    }
+
+    public RenderTexture renderTexture;
+    public Texture2D mapTexture;
+    ComputeBuffer octaveBuffer;
+    ComputeBuffer biomeBuffer;
+    public float[,] GPUHeightMap(MapSettings settings, Vector2 position)
+    {
+        //float[] positionArray = { position.x, position.y};
+        //positionBuffer.SetData(positionArray);
+        terrainShader.SetFloats("ChunkPosition", position.x, position.y);
+
+        //terrainShader.DispatchIndirect(0, positionBuffer);
+        terrainShader.Dispatch(0, renderTexture.width / 5, renderTexture.height / 5, 1);
+        float[,] heightMap = new float[settings.size + 2, settings.size + 2];
         mapTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGB24, false);
         RenderTexture.active = renderTexture;
         mapTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
@@ -410,15 +537,33 @@ public class WorldGenerator : MonoBehaviour
         {
             for (int y = 0; y < mapTexture.height; y++)
             {
-                float height = mapTexture.GetPixel(x, y).r - 0.5f;
+                float height = settings.curve.Evaluate(mapTexture.GetPixel(x, y).r * 1.2f);
                 //print(mapTexture.GetPixel(x, y).r);
                 heightMap[x, y] = height;
             }
         }
         //pointBuffer.Dispose();
-        octaveBuffer.Dispose();
+        //octaveBuffer.Dispose();
 
         return heightMap;
+    }
+
+    public Texture2D GPUHeightMapTexture(MapSettings settings, Vector2 position)
+    {
+        //float[] positionArray = { position.x, position.y};
+        //positionBuffer.SetData(positionArray);
+        terrainShader.SetFloats("ChunkPosition", position.x, position.y);
+
+        //terrainShader.DispatchIndirect(0, positionBuffer);
+        terrainShader.Dispatch(0, renderTexture.width / 5, renderTexture.height / 5, 1);
+        float[,] heightMap = new float[settings.size + 2, settings.size + 2];
+        mapTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGB24, false);
+        RenderTexture.active = renderTexture;
+        mapTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        RenderTexture.active = null;
+
+
+        return mapTexture;
     }
 
     public float SampleHeightMap(MapSettings settings, Vector2 position, Vector2 chunkPosition)
@@ -542,7 +687,7 @@ public class WorldGenerator : MonoBehaviour
         return colors;
     }
 
-    public bool isOneBiome(float[,] temperatureMap, float[,] moistureMap)
+    public bool IsOneBiome(float[,] temperatureMap, float[,] moistureMap)
     {
         Biome biome = getBiome(temperatureMap[0,0], moistureMap[0,0]);
         for (int y = 0; y <= heightMapSettings.size; y++)
@@ -653,12 +798,6 @@ public class WorldGenerator : MonoBehaviour
             }
         }
         return finalColors;
-    }
-
-    public struct JitteredVertex
-    {
-        Vector3 position;
-        float biome;
     }
 
 
