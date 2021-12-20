@@ -136,6 +136,21 @@ public class ChunkGenerator : MonoBehaviour
         GetComponent<MeshCollider>().sharedMesh = mesh;
     }
 
+    public void DeformMesh()
+    {
+        Texture2D texture = new Texture2D(heightMapTexture.width, heightMapTexture.height, TextureFormat.RGB24, false);
+        RenderTexture.active = heightMapTexture;
+        texture.ReadPixels(new Rect(0, 0, heightMapTexture.width, heightMapTexture.height), 0, 0);
+        int i = 0;
+        for (int z = 0; z <= heightMapTexture.width; z++)
+        {
+            for (int x = 0; x <= heightMapTexture.width; x++)
+            {
+                vertices[i++].y = texture.GetPixel(x, z).r;
+            }
+        }
+    }
+
     void updateMesh()
     {
         mesh.vertices = vertices;

@@ -3,6 +3,7 @@
 #pragma kernel BiomeMap
 #pragma kernel BiomeBlendMap
 #pragma kernel JitterPoints
+#pragma kernel SetMapSettings
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 
@@ -41,21 +42,30 @@ struct GPUMapSettings
 
 
 
-StructuredBuffer<Octave> Octaves;
+
 StructuredBuffer<float3> jitteredPoints;
 StructuredBuffer<Biome> Biomes;
 int BiomeLength;
-float2 Offset;
-float Scale;
-float Size;
-float2 ChunkPosition;
-int OctaveCount;
-float Resolution;
-float CurveResolution;
+
 RWTexture2D<float4> HeightMapTexture;
 RWTexture2D<float4> ColorMapTexture;
 Texture2D<float4> HeightCurveTexture;
 Texture2D<float4> BiomeGradientTexture;
+
+GPUMapSettings HeightMapSettings;
+GPUMapSettings TemperatureMapSettings;
+GPUMapSettings MoistureMapSettings;
+
+float Resolution;
+float CurveResolution;
+
+int MapID;
+float2 Offset;
+float Scale;
+float Size;
+float2 ChunkPosition;
+StructuredBuffer<Octave> Octaves;
+int OctaveCount;
 
 int GetBiome(float2 position)
 {
@@ -73,8 +83,10 @@ int GetBiome(float2 position)
 	}
 	return -1;
 }
-float CalculateNoise(GPUMapSettings settings, float2 position)
+float CalculateNoise(int mapID, float2 position)
 {
+	GPUMapSettings settings;
+	
 	float mapSize = settings.Size;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
@@ -151,6 +163,33 @@ float CalculateNoise(float2 position)
 	return height;
 }
 
+[numthreads(1, 1, 1)]
+void SetMapSettings(uint3 id : SV_DispatchThreadID) 
+{
+	if (MapID == 0) //Height Map
+	{
+		HeightMapSettings.Offset = Offset;
+		HeightMapSettings.Scale = Scale;
+		HeightMapSettings.Size = Size;
+		HeightMapSettings.Octaves = Octaves;
+		HeightMapSettings.OctaveCount = OctaveCount;
+	} else if (MapID == 1) //Temperature Map
+	{
+		TemperatureMapSettings.Offset = Offset;
+		TemperatureMapSettings.Scale = Scale;
+		TemperatureMapSettings.Size = Size;
+		TemperatureMapSettings.Octaves = Octaves;
+		TemperatureMapSettings.OctaveCount = OctaveCount;
+	} else if (MapID == 2) //Moisture Map
+	{
+		MoistureMapSettings.Offset = Offset;
+		MoistureMapSettings.Scale = Scale;
+		MoistureMapSettings.Size = Size;
+		MoistureMapSettings.Octaves = Octaves;
+		MoistureMapSettings.OctaveCount = OctaveCount;
+	}
+}
+
 [numthreads(10, 1, 1)]
 void JitterPoints(uint3 id : SV_DispatchThreadID)
 {
@@ -193,9 +232,12 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 	float x = id.x / Resolution;
 	float y = id.y / Resolution;
 	float noise = CalculateNoise(float2(x, y));
+	noise = pow(noise, 2.5);
 	int curveIndex = (int) (noise * CurveResolution);
-	noise = HeightCurveTexture[int2(curveIndex, 0)];
+	//noise = HeightCurveTexture[int2(curveIndex, 0)];
 	HeightMapTexture[id.xy] = float4(noise, noise, noise, 0.0);
+	//curveIndex = (int)(noise * CurveResolution);
+	ColorMapTexture[id.xy] = BiomeGradientTexture[int2(curveIndex, 1)];
 	//Result[id.xy] = float4(curveIndex / 99.5, 0, 0, 0);
 
 }

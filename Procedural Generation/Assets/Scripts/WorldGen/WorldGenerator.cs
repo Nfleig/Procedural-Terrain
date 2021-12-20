@@ -280,14 +280,8 @@ public class WorldGenerator : MonoBehaviour
     {
 
         Vector2 chunkPosition = new Vector2(x, y);
-        float[,] heightMap;
-        if (useGPU)
-        {
-            heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
-        } else
-        {
-            heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
-        }
+        
+        float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
         float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
         float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
         Color[] colorMap;
@@ -319,15 +313,7 @@ public class WorldGenerator : MonoBehaviour
     {
         ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
         Vector2 chunkPosition = new Vector2(x, y);
-        float[,] heightMap;
-        if (useGPU)
-        {
-            heightMap = GPUHeightMap(heightMapSettings, chunkPosition);
-        }
-        else
-        {
-            heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
-        }
+        float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
         float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
         float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
         Color[] colorMap;
@@ -473,19 +459,16 @@ public class WorldGenerator : MonoBehaviour
         public Texture2D Curve;
     }
 
+    //https://gamedev.stackexchange.com/questions/71014/passing-input-to-compute-shader
     void InitializeTerrainShader()
     {
         MapSettings settings = heightMapSettings;
-        renderTexture = new RenderTexture(settings.size + 2, settings.size + 2, 24);
-        renderTexture.enableRandomWrite = true;
-        renderTexture.Create();
 
         int kernel = terrainShader.FindKernel("HeightMap");
-        terrainShader.SetTexture(kernel, "Result", renderTexture);
         terrainShader.SetFloats("Offset", settings.offset.x, settings.offset.y);
         terrainShader.SetFloat("Scale", settings.scale);
         terrainShader.SetFloat("Size", settings.size);
-        terrainShader.SetFloat("Resolution", renderTexture.width);
+        terrainShader.SetFloat("Resolution", settings.size + 2);
         terrainShader.SetFloat("CurveResolution", GPUCurveResolution);
 
         Octave[] octaves = settings.getOctaveArray();
@@ -506,65 +489,35 @@ public class WorldGenerator : MonoBehaviour
         biomeBuffer.SetData(GPUBiomes);
         terrainShader.SetBuffer(kernel, "Biomes", biomeBuffer);
         terrainShader.SetInt("BiomeLength", biomes.Length);
-        
+        GPUSetMapSettings(temperatureMapSettings, 1);
+        GPUSetMapSettings(moistureMapSettings, 2);
+        GPUSetMapSettings(heightMapSettings, 0);
+
         heightCurveTexture = BakeCurve(heightMapSettings.curve);
         terrainShader.SetTexture(kernel, "HeightCurveTexture", heightCurveTexture);
         biomeGradientTexture = BakeBiomes();
         terrainShader.SetTexture(kernel, "BiomeGradientTexture", biomeGradientTexture);
-
-
-
     }
 
-    public RenderTexture renderTexture;
-    public Texture2D mapTexture;
+    void GPUSetMapSettings(MapSettings settings, int id)
+    {
+        int kernel = terrainShader.FindKernel("SetMapSettings");
+        terrainShader.SetFloats("Offset", settings.offset.x, settings.offset.y);
+        terrainShader.SetFloat("Scale", settings.scale);
+        terrainShader.SetFloat("Size", settings.size);
+        Octave[] octaves = settings.getOctaveArray();
+        terrainShader.SetInt("OctaveCount", octaves.Length);
+        int vectorSize = sizeof(float) * 2;
+        int totalSize = (sizeof(float) * 2) + vectorSize;
+        octaveBuffer = new ComputeBuffer(octaves.Length, totalSize);
+        octaveBuffer.SetData(octaves);
+        terrainShader.SetBuffer(kernel, "Octaves", octaveBuffer);
+        terrainShader.SetInt("MapID", id);
+        terrainShader.Dispatch(kernel, 1, 1, 1);
+    }
+
     ComputeBuffer octaveBuffer;
     ComputeBuffer biomeBuffer;
-    public float[,] GPUHeightMap(MapSettings settings, Vector2 position)
-    {
-        //float[] positionArray = { position.x, position.y};
-        //positionBuffer.SetData(positionArray);
-        terrainShader.SetFloats("ChunkPosition", position.x, position.y);
-
-        //terrainShader.DispatchIndirect(0, positionBuffer);
-        terrainShader.Dispatch(0, renderTexture.width / 5, renderTexture.height / 5, 1);
-        float[,] heightMap = new float[settings.size + 2, settings.size + 2];
-        mapTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGB24, false);
-        RenderTexture.active = renderTexture;
-        mapTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        RenderTexture.active = null;
-        for (int x = 0; x < mapTexture.width; x++)
-        {
-            for (int y = 0; y < mapTexture.height; y++)
-            {
-                float height = settings.curve.Evaluate(mapTexture.GetPixel(x, y).r * 1.2f);
-                //print(mapTexture.GetPixel(x, y).r);
-                heightMap[x, y] = height;
-            }
-        }
-        //pointBuffer.Dispose();
-        //octaveBuffer.Dispose();
-
-        return heightMap;
-    }
-
-    public Texture2D GPUHeightMapTexture(MapSettings settings, Vector2 position)
-    {
-        //float[] positionArray = { position.x, position.y};
-        //positionBuffer.SetData(positionArray);
-        terrainShader.SetFloats("ChunkPosition", position.x, position.y);
-
-        //terrainShader.DispatchIndirect(0, positionBuffer);
-        terrainShader.Dispatch(0, renderTexture.width / 5, renderTexture.height / 5, 1);
-        float[,] heightMap = new float[settings.size + 2, settings.size + 2];
-        mapTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGB24, false);
-        RenderTexture.active = renderTexture;
-        mapTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        RenderTexture.active = null;
-
-
-        return mapTexture;
-    }
 
     public float SampleHeightMap(MapSettings settings, Vector2 position, Vector2 chunkPosition)
     {
