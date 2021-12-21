@@ -142,13 +142,14 @@ public class ChunkGenerator : MonoBehaviour
         RenderTexture.active = heightMapTexture;
         texture.ReadPixels(new Rect(0, 0, heightMapTexture.width, heightMapTexture.height), 0, 0);
         int i = 0;
-        for (int z = 0; z <= heightMapTexture.width; z++)
+        for (int z = 0; z < heightMapTexture.width; z++)
         {
-            for (int x = 0; x <= heightMapTexture.width; x++)
+            for (int x = 0; x < heightMapTexture.width; x++)
             {
-                vertices[i++].y = texture.GetPixel(x, z).r;
+                vertices[i++].y = texture.GetPixel(x, z).r * depth;
             }
         }
+        updateMesh();
     }
 
     void updateMesh()

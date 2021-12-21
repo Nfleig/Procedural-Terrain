@@ -227,6 +227,7 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetTexture(0, "ColorMapTexture", newChunk.colorMapTexture);
         terrainShader.SetFloats("ChunkPosition", x, y);
         terrainShader.Dispatch(0, newChunk.heightMapTexture.width / 5, newChunk.heightMapTexture.width / 5, 1);
+        newChunk.DeformMesh();
         return newChunk.GetComponent<Chunk>();
     }
 
