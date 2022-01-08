@@ -12,25 +12,21 @@ public class CameraController : MonoBehaviour
 
     public float XRotateThreshold;
     public int VisibleChunks;
+    public bool screenSaver;
     public WorldGenerator worldGen;
 
     private Camera camera;
     private bool isClicking;
+    private bool start = false;
 
     private float rotX = 0;
 
-    private Dictionary<Vector2, Chunk> chunkDictionary = new Dictionary<Vector2, Chunk>();
     // Start is called before the first frame update
     void Awake()
     {
         camera = Camera.main;
     }
 
-    private void Start()
-    {
-        //GenerateChunks(true);
-        //worldGen.GenerateChunk(0, 0);
-    }
 
     // Update is called once per frame
     void Update()
@@ -38,14 +34,25 @@ public class CameraController : MonoBehaviour
         GenerateChunks();
         float xInput = Input.GetAxis("Horizontal");
         float zInput = Input.GetAxis("Vertical");
-        if(Input.GetButtonDown("Fire2")){
+        if (Input.GetButtonDown("Fire2")){
             isClicking = true;
         }
         if(Input.GetButtonUp("Fire2")){
             isClicking = false;
         }
-        
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
         Vector3 dir = transform.forward * zInput + transform.right * xInput;
+        if (start || !worldGen.IsGenerating())
+        {
+            start = true;
+        }
+        if (screenSaver && start)
+        {
+            dir = new Vector3(1, 0, 1);
+        }
         transform.position += dir * MovementSpeed * Time.deltaTime;
         if(isClicking){
             float rotY = Input.GetAxis("Mouse X") * 5;
@@ -72,9 +79,14 @@ public class CameraController : MonoBehaviour
         Chunk[] allChunks = (Chunk[])GameObject.FindObjectsOfType(typeof(Chunk));
         foreach (Chunk chunk in allChunks)
         {
-            if (Vector3.Distance(transform.position, chunk.transform.position) > VisibleChunks * 8)
+            if (Mathf.Abs(chunk.position.x - (float) chunkCoordX) > VisibleChunks || Mathf.Abs(chunk.position.y - (float)chunkCoordY) > VisibleChunks)
             {
                 chunk.Unload();
+                if (screenSaver)
+                {
+                    worldGen.chunkDictionary.Remove(chunk.position);
+                    Destroy(chunk.gameObject);
+                }
             }
         }
         for (int x = -VisibleChunks; x < VisibleChunks; x++)
@@ -82,14 +94,15 @@ public class CameraController : MonoBehaviour
             for (int y = -VisibleChunks; y < VisibleChunks; y++)
             {
                 Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
-                if (chunkDictionary.ContainsKey(chunkCoord))
+                if (worldGen.chunkDictionary.ContainsKey(chunkCoord))
                 {
-                    chunkDictionary[chunkCoord].Load();
+                    worldGen.chunkDictionary[chunkCoord].Load();
                 }
                 else
                 {
+                    //print(chunkCoord);
                     Chunk newChunk = worldGen.GPUGenerateChunk((int)chunkCoord.x, (int)chunkCoord.y);
-                    chunkDictionary.Add(chunkCoord, newChunk);
+                    worldGen.chunkDictionary.Add(chunkCoord, newChunk);
                     //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
 
                 }

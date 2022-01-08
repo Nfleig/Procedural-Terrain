@@ -7,8 +7,7 @@ public class Chunk : MonoBehaviour
     public enum Biome {PLAINS, DESERT, TUNDRA}
 
     private MeshRenderer renderer;
-    public int xPosition;
-    public int yPosition;
+    public Vector2 position;
     public bool hovering = false;
     public bool selected = false;
     public Biome biome { get; }
@@ -16,8 +15,7 @@ public class Chunk : MonoBehaviour
     void Start()
     {
         renderer = GetComponent<MeshRenderer>();
-        xPosition = (int)(transform.position.x / 8);
-        yPosition = (int)(transform.position.z / 8);
+        //position = new Vector2(transform.position.x / 8, transform.position.y / 8);
     }
 
     public void Load()

@@ -16,52 +16,16 @@ public class ChunkGenerator : MonoBehaviour
     MeshRenderer meshRenderer;
     public Shader terrainShader;
     public static float depth;
+    int xSize;
+    int ySize;
+    float scale;
 
 
     public void InitializeTerrain(int xSize, int ySize, float scale)
     {
-        meshRenderer = GetComponent<MeshRenderer>();
-        mesh = new Mesh();
-        GetComponent<MeshFilter>().mesh = mesh;
-        vertices = new Vector3[(xSize + 1) * (ySize + 1)];
-        int i = 0;
-        for (int z = 0; z <= ySize; z++)
-        {
-            for (int x = 0; x <= xSize; x++)
-            {
-                vertices[i++] = new Vector3(x * scale, 0, z * scale);
-            }
-        }
-        triangles = new int[xSize * ySize * 6];
-        int vert = 0;
-        int tris = 0;
-        for (int z = 0; z < ySize; z++)
-        {
-            for (int x = 0; x < xSize; x++)
-            {
-                triangles[tris] = vert;
-                triangles[tris + 1] = vert + 1 + xSize;
-                triangles[tris + 2] = vert + 1;
-                triangles[tris + 3] = vert + 1;
-                triangles[tris + 4] = vert + 1 + xSize;
-                triangles[tris + 5] = vert + 2 + xSize;
-
-                vert++;
-                tris += 6;
-            }
-            vert++;
-        }
-        uvs = new Vector2[vertices.Length];
-        i = 0;
-        for (int z = 0; z <= ySize; z++)
-        {
-            for (int x = 0; x <= xSize; x++)
-            {
-                uvs[i] = new Vector2((float)x / xSize, (float)z / ySize);
-                //print(uvs[i]);
-                i++;
-            }
-        }
+        this.xSize = xSize;
+        this.ySize = xSize;
+        this.scale = scale;
 
         heightMapTexture = new RenderTexture(xSize + 1, ySize + 1, 1);
         heightMapTexture.enableRandomWrite = true;
@@ -71,9 +35,7 @@ public class ChunkGenerator : MonoBehaviour
         colorMapTexture.enableRandomWrite = true;
         colorMapTexture.Create();
 
-        updateMesh();
-
-        GetComponent<MeshCollider>().sharedMesh = mesh;
+        //updateMesh();
     }
 
     public void GenerateTerrain(Texture2D heightMap)
@@ -138,26 +100,61 @@ public class ChunkGenerator : MonoBehaviour
 
     public void DeformMesh()
     {
+
         Texture2D texture = new Texture2D(heightMapTexture.width, heightMapTexture.height, TextureFormat.RGB24, false);
         RenderTexture.active = heightMapTexture;
         texture.ReadPixels(new Rect(0, 0, heightMapTexture.width, heightMapTexture.height), 0, 0);
+        mesh = new Mesh();
+        GetComponent<MeshFilter>().mesh = mesh;
+        vertices = new Vector3[(xSize + 1) * (ySize + 1)];
         int i = 0;
-        for (int z = 0; z < heightMapTexture.width; z++)
+        for (int z = 0; z <= ySize; z++)
         {
-            for (int x = 0; x < heightMapTexture.width; x++)
+            for (int x = 0; x <= xSize; x++)
             {
-                vertices[i++].y = texture.GetPixel(x, z).r * depth;
+                vertices[i++] = new Vector3(x * scale, texture.GetPixel(x, z).r * depth, z * scale);
             }
         }
+        triangles = new int[xSize * ySize * 6];
+        int vert = 0;
+        int tris = 0;
+        for (int z = 0; z < ySize; z++)
+        {
+            for (int x = 0; x < xSize; x++)
+            {
+                triangles[tris] = vert;
+                triangles[tris + 1] = vert + 1 + xSize;
+                triangles[tris + 2] = vert + 1;
+                triangles[tris + 3] = vert + 1;
+                triangles[tris + 4] = vert + 1 + xSize;
+                triangles[tris + 5] = vert + 2 + xSize;
+
+                vert++;
+                tris += 6;
+            }
+            vert++;
+        }
+        uvs = new Vector2[vertices.Length];
+        i = 0;
+        for (int z = 0; z <= ySize; z++)
+        {
+            for (int x = 0; x <= xSize; x++)
+            {
+                uvs[i] = new Vector2((float)x / xSize, (float)z / ySize);
+                //print(uvs[i]);
+                i++;
+            }
+        }
+        meshRenderer = GetComponent<MeshRenderer>();
         updateMesh();
+        GetComponent<MeshCollider>().sharedMesh = mesh;
     }
 
     void updateMesh()
     {
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        mesh.colors = colors;
-        mesh.uv = uvs;
+        mesh.SetVertices(vertices);
+        mesh.SetTriangles(triangles, 0);
+        mesh.SetUVs(0, uvs);
         mesh.RecalculateNormals();
         Material chunkMaterial = new Material(terrainShader);
         chunkMaterial.SetTexture("HeightMap", heightMapTexture);

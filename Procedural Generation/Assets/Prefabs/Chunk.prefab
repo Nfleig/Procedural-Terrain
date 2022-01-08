@@ -113,7 +113,7 @@ MonoBehaviour:
   xPosition: 0
   yPosition: 0
   hovering: 0
-  selected: 1
+  selected: 0
 --- !u!64 &-2918036730739074107
 MeshCollider:
   m_ObjectHideFlags: 0
