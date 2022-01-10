@@ -116,6 +116,8 @@ float CalculateTemperatureNoise(float2 position)
 		sumAmplitudes += TemperatureMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
+	int curveIndex = (int) (height * CurveResolution);
+	height = HeightCurveTexture[int2(curveIndex, 1)];
 	return height;
 }
 
@@ -155,6 +157,8 @@ float CalculateBiomeBlendNoise(float2 position)
 		sumAmplitudes += BiomeBlendMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
+	int curveIndex = (int) (height * CurveResolution);
+	height = HeightCurveTexture[int2(curveIndex, 3)];
 	return height;
 }
 
@@ -194,6 +198,8 @@ float CalculateMoistureNoise(float2 position)
 		sumAmplitudes += MoistureMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
+	int curveIndex = (int) (height * CurveResolution);
+	height = HeightCurveTexture[int2(curveIndex, 2)];
 	return height;
 }
 
@@ -350,7 +356,7 @@ float BlendHeights(float2 position, int curveIndex)
 		float biomeWeight = pow(max(0, pow(radius, 2) - pow(dx, 2) - pow(dy, 2)), 2);
 		if (Distance <= BiomeBlendRadius)
 		{
-			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise * (1 - centerWeight) + 0.01f;
+			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * (noise) * (1 - centerWeight) + 0.01f;
 			if (firstBlend)
 			{
 				height = BiomeCurveTexture[int2(curveIndex, jitteredPoints[i].z)].r;

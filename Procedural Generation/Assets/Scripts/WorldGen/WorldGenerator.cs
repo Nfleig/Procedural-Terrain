@@ -15,6 +15,7 @@ public class WorldGenerator : MonoBehaviour
     public MapSettings temperatureMapSettings;
     public MapSettings moistureMapSettings;
     public MapSettings biomeBlendMapSettings;
+    public MapSettings jitterMapSettings;
 
     private float step;
 
@@ -36,7 +37,6 @@ public class WorldGenerator : MonoBehaviour
     public Biome[] biomes;
     public float biomeBlendRange;
     private System.Random prng;
-    private bool inEditor;
     float minimumHeight = Mathf.Infinity;
     float maximumHeight = -Mathf.Infinity;
     public Texture2D heightCurveTexture;
@@ -174,6 +174,7 @@ public class WorldGenerator : MonoBehaviour
         temperatureMapSettings.GenerateOctaveArray(prng);
         moistureMapSettings.GenerateOctaveArray(prng);
         biomeBlendMapSettings.GenerateOctaveArray(prng);
+        jitterMapSettings.GenerateOctaveArray(prng);
         InitializeTerrainShader();
         ChunkGenerator.depth = depth;
         
@@ -230,6 +231,7 @@ public class WorldGenerator : MonoBehaviour
         {
             DestroyImmediate(chunk.gameObject);
         }
+        chunkQueue.Clear();
     }
 
     public Chunk RequestChunk(int x, int y)
@@ -252,14 +254,7 @@ public class WorldGenerator : MonoBehaviour
         newChunk.InitializeTerrain(heightMapSettings.size, heightMapSettings.size, scale);
 
         newChunk.GetComponent<Chunk>().position = new Vector2(x, y);
-
-        if (inEditor)
-        {
-            CalculateChunk(newChunk);
-        } else
-        {
-            chunkQueue.Enqueue(newChunk);
-        }
+        chunkQueue.Enqueue(newChunk);
 
         return newChunk.GetComponent<Chunk>();
     }
@@ -280,14 +275,23 @@ public class WorldGenerator : MonoBehaviour
         chunk.DeformMesh();
     }
 
-    public Texture2D BakeCurve(AnimationCurve c)
+    public Texture2D BakeMapCurves()
     {
-        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 1);
+        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 4);
         for (int i = 0; i < curveTexture.width; i++)
         {
-            float curveValue = c.Evaluate((float)i / (float)curveTexture.width);
+            float curveIndex = (float)i / (float)curveTexture.width;
+            float curveValue = heightMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
             curveTexture.SetPixel(i, 0, new Color(curveValue, curveValue, curveValue));
-            //print(heightCurveTexture.GetPixel(i, 0));
+
+            curveValue = temperatureMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            curveTexture.SetPixel(i, 1, new Color(curveValue, curveValue, curveValue));
+
+            curveValue = moistureMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            curveTexture.SetPixel(i, 2, new Color(curveValue, curveValue, curveValue));
+
+            curveValue = biomeBlendMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            curveTexture.SetPixel(i, 3, new Color(curveValue, curveValue, curveValue));
         }
         curveTexture.Apply();
         return curveTexture;
@@ -406,7 +410,6 @@ public class WorldGenerator : MonoBehaviour
     public void CreateWorld()
     {
         Awake();
-        inEditor = true;
         /*
         GenerateOctaves(octaves);
         DeleteWorld();
@@ -424,8 +427,11 @@ public class WorldGenerator : MonoBehaviour
 
             }
         }
+        while(chunkQueue.Count > 0)
+        {
+            CalculateChunk(chunkQueue.Dequeue());
+        }
         DisposeBuffers();
-        inEditor = false;
     }
 
     /*
@@ -576,15 +582,16 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetBuffer(kernel, "maps", mapBuffer);
         terrainShader.SetBuffer(jitterKernel, "maps", mapBuffer);
 
-        heightCurveTexture = BakeCurve(heightMapSettings.curve);
+        heightCurveTexture = BakeMapCurves();
         terrainShader.SetTexture(kernel, "HeightCurveTexture", heightCurveTexture);
+        terrainShader.SetTexture(jitterKernel, "HeightCurveTexture", heightCurveTexture);
         biomeGradientTexture = BakeBiomes();
         terrainShader.SetTexture(kernel, "BiomeGradientTexture", biomeGradientTexture);
         biomeCurveTexture = BakeBiomeCurves();
         terrainShader.SetTexture(kernel, "BiomeCurveTexture", biomeCurveTexture);
     }
 
-    Dictionary<Vector2, List<Vector2>> calculatedPointsPerChunk = new Dictionary<Vector2, List<Vector2>>();
+    Dictionary<Vector2, Dictionary<Vector2, Vector3>> calculatedPointsPerChunk = new Dictionary<Vector2, Dictionary<Vector2, Vector3>>();
     Dictionary<Vector4, float> calculatedBiomes = new Dictionary<Vector4, float>();
 
     int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1};
@@ -594,50 +601,37 @@ public class WorldGenerator : MonoBehaviour
     {
         List<Vector3> jitteredPoints = new List<Vector3>();
         float chunkSize = (float)heightMapSettings.size / (float)(heightMapSettings.size + 2);
-        bool[] quadrants = new bool[8];
         bool hasJitteredPoints = false;
+        float resolution = heightMapSettings.size + 2;
         float chunkRadius = (heightMapSettings.size / 2) * Mathf.Sqrt(2);
-        float boundary = (chunkRadius - (heightMapSettings.size / 2)) / (float) (heightMapSettings.size + 2) + biomeBlendRange;
+        float boundary = (chunkRadius - (heightMapSettings.size / 2)) / resolution;
+        Dictionary<Vector2, Vector3> calculatedPointGrid = new Dictionary<Vector2, Vector3>();
         if (useJitteredPointDictionary)
         {
             hasJitteredPoints = calculatedPointsPerChunk.ContainsKey(new Vector2(chunkX, chunkY));
             if (hasJitteredPoints)
             {
-                List<Vector2> calculatedPoints = calculatedPointsPerChunk[new Vector2(chunkX, chunkY)];
-                foreach (Vector2 point in calculatedPoints)
-                {
-                    Vector4 fullPoint = new Vector4(point.x, point.y, chunkX, chunkY);
-                    float biome = calculatedBiomes[fullPoint];
-                    jitteredPoints.Add(new Vector3(point.x, point.y, biome));
-                    quadrants[0] = quadrants[0] || (point.x <= boundary && point.y <= boundary);
-                    quadrants[1] = quadrants[1] || (point.x > boundary && point.x < 1 - boundary && point.y <= boundary);
-                    quadrants[2] = quadrants[2] || (point.x >= 1 - boundary && point.y <= boundary);
-                    quadrants[3] = quadrants[3] || (point.x >= 1 - boundary && point.y > boundary && point.y < 1 - boundary);
-                    quadrants[4] = quadrants[4] || (point.x >= 1 - boundary && point.y >= 1 - boundary);
-                    quadrants[5] = quadrants[5] || (point.x > boundary && point.x < 1 - boundary && point.y >= 1 - boundary);
-                    quadrants[6] = quadrants[6] || (point.x <= boundary && point.y >= 1 - boundary);
-                    quadrants[7] = quadrants[7] || (point.x <= boundary && point.y > boundary && point.y < 1 - boundary);
-                }
+                calculatedPointGrid = calculatedPointsPerChunk[new Vector2(chunkX, chunkY)];
+                
             }
         }
-        for (int y = (int)((heightMapSettings.size / 2) - chunkRadius); y <= (int)((heightMapSettings.size / 2) + chunkRadius); y += 4)
+        for (int y = (int)((heightMapSettings.size / 2) - (chunkRadius + ((biomeBlendRange + 0.1) * resolution))); y <= (int)((heightMapSettings.size / 2) + (chunkRadius + (chunkRadius + ((biomeBlendRange + 0.1) * resolution)))); y += 4)
         {
-            for (int x = (int)((heightMapSettings.size / 2) - chunkRadius); x <= (int)((heightMapSettings.size / 2) + chunkRadius); x += 4)
+            for (int x = (int)((heightMapSettings.size / 2) - (chunkRadius + ((biomeBlendRange + 0.1) * resolution))); x <= (int)((heightMapSettings.size / 2) + (chunkRadius + (chunkRadius + ((biomeBlendRange + 0.1) * resolution)))); x += 4)
             {
-                float scaledX = (float)x / (float)(heightMapSettings.size + 2);
-                float scaledY = (float)y / (float)(heightMapSettings.size + 2);
+                float scaledX = (float)x / resolution;
+                float scaledY = (float)y / resolution;
                 if (useJitteredPointDictionary && hasJitteredPoints)
                 {
-                    if (quadrants[0] && scaledX <= boundary && scaledY <= boundary) { continue; }
-                    if (quadrants[1] && scaledX > boundary && scaledX < 1 - boundary && scaledY <= boundary) { continue; }
-                    if (quadrants[2] && scaledX >= 1 - boundary && scaledY <= boundary) { continue; }
-                    if (quadrants[3] && scaledX >= 1 - boundary && scaledY > boundary && scaledY < 1 - boundary) { continue; }
-                    if (quadrants[4] && scaledX >= 1 - boundary && scaledY >= 1 - boundary) { continue; }
-                    if (quadrants[5] && scaledX > boundary && scaledX < 1 - boundary && scaledY >= 1 - boundary) { continue; }
-                    if (quadrants[6] && scaledX <= boundary && scaledY >= 1 - boundary) { continue; }
-                    if (quadrants[7] && scaledX <= boundary && scaledY > boundary && scaledY < 1 - boundary) { continue; }
+                    Vector2 position = new Vector2(scaledX, scaledY);
+                    if (calculatedPointGrid.ContainsKey(position))
+                    {
+                        jitteredPoints.Add(calculatedPointGrid[position]);
+                        //print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
+                        continue;
+                    }
                 }
-                jitteredPoints.Add(new Vector3(scaledX, scaledY, (float)prng.NextDouble() * 2f * Mathf.PI));
+                jitteredPoints.Add(new Vector3(scaledX, scaledY, (float) prng.NextDouble() * 2f * Mathf.PI));
             }
         }
         Vector3[] jitteredPointArray = jitteredPoints.ToArray();
@@ -654,22 +648,24 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetBuffer(terrainShader.FindKernel("HeightMap"), "OutputBuffer", outputBuffer);
         if (useJitteredPointDictionary)
         {
-            jitteredPointBuffer.GetData(jitteredPointArray);
-            List<Vector3> jitteredPointList = new List<Vector3>(jitteredPointArray);
+            Vector3[] newJitteredPointArray = new Vector3[jitteredPointArray.Length];
+            jitteredPointBuffer.GetData(newJitteredPointArray);
             Vector2 chunkPosition = new Vector2(chunkX, chunkY);
-            foreach (Vector3 point in jitteredPointArray)
+            float pointArea = biomeBlendRange + 0.05f;
+            for (int i = 0; i < newJitteredPointArray.Length; i++)
             {
-                if (point.x > boundary && point.y < 1 - boundary && point.y > boundary && point.y < 1 - boundary)
+                if (newJitteredPointArray[i].x > pointArea && newJitteredPointArray[i].y < 1 - pointArea && newJitteredPointArray[i].y > pointArea && newJitteredPointArray[i].y < 1 - pointArea)
                 {
                     continue;
                 }
 
-                for (int dir = 0; dir < 8; dir++)
+                for (int dir = 0; dir < 4; dir++)
                 {
-                    if (((cosValues[dir] <= 0 && point.x <= boundary + chunkRadius) || (cosValues[dir] >= 0 && point.x >= 1 - (boundary + chunkRadius))) && ((sinValues[dir] <= 0 && point.y <= boundary + chunkRadius) || (sinValues[dir] >= 0 && point.y >= 1 - (boundary + chunkRadius))))
+                    if (((cosValues[dir] <= 0 && newJitteredPointArray[i].x <= pointArea) || (cosValues[dir] >= 0 && newJitteredPointArray[i].x >= 1 - pointArea)) && ((sinValues[dir] <= 0 && newJitteredPointArray[i].y <= pointArea) || (sinValues[dir] >= 0 && newJitteredPointArray[i].y >= 1 - pointArea)))
                     {
                         Vector2 newChunkPosition = new Vector2(chunkPosition.x + cosValues[dir], chunkPosition.y + sinValues[dir]);
-                        Vector2 newPoint = new Vector2(point.x - (chunkSize * cosValues[dir]), point.y - (chunkSize * sinValues[dir]));
+                        Vector3 newPoint = new Vector3(newJitteredPointArray[i].x - (chunkSize * cosValues[dir]), newJitteredPointArray[i].y - (chunkSize * sinValues[dir]), newJitteredPointArray[i].z);
+                        //Vector3 newPoint = newJitteredPointArray[i];
 
                         if (chunkDictionary.ContainsKey(newChunkPosition))
                         {
@@ -678,29 +674,22 @@ public class WorldGenerator : MonoBehaviour
 
                         if (calculatedPointsPerChunk.ContainsKey(newChunkPosition))
                         {
-                            List<Vector2> calculatedPoints = calculatedPointsPerChunk[newChunkPosition];
-                            if (!calculatedPoints.Contains(newPoint))
+                            Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (chunkSize * cosValues[dir]), jitteredPointArray[i].y - (chunkSize * sinValues[dir]));
+                            if (!calculatedPointsPerChunk[newChunkPosition].ContainsKey(oldPoint))
                             {
-                                calculatedPointsPerChunk[newChunkPosition].Add(newPoint);
+                                calculatedPointsPerChunk[newChunkPosition].Add(oldPoint, newPoint);
                             }
                         }
                         else
                         {
-                            List<Vector2> calculatedPoints = new List<Vector2>();
-                            calculatedPoints.Add(newPoint);
+                            Dictionary<Vector2, Vector3> calculatedPoints = new Dictionary<Vector2, Vector3>();
+                            Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (chunkSize * cosValues[dir]), jitteredPointArray[i].y - (chunkSize * sinValues[dir]));
+                            calculatedPoints.Add(oldPoint, newPoint);
                             calculatedPointsPerChunk.Add(newChunkPosition, calculatedPoints);
                             
                         }
-                        Vector4 newFullPoint = new Vector4(newPoint.x, newPoint.y, newChunkPosition.x, newChunkPosition.y);
-                        if (!calculatedBiomes.ContainsKey(newFullPoint))
-                        {
-                            calculatedBiomes.Add(newFullPoint, point.z);
-                        }
                     }
                 }
-                
-                Vector4 oldFullPoint = new Vector4(point.x, point.y, chunkPosition.x, chunkPosition.y);
-                calculatedBiomes.Remove(oldFullPoint);
             }
             calculatedPointsPerChunk.Remove(chunkPosition);
         }
