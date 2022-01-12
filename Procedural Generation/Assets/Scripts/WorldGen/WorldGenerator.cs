@@ -594,7 +594,7 @@ public class WorldGenerator : MonoBehaviour
 
     Dictionary<Vector2, Dictionary<Vector2, Vector3>> calculatedPointsPerChunk = new Dictionary<Vector2, Dictionary<Vector2, Vector3>>();
     Dictionary<Vector4, float> calculatedBiomes = new Dictionary<Vector4, float>();
-    List<Vector3> allPoints = new List<Vector3>();
+    List<Vector4> allPoints = new List<Vector4>();
 
     int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1};
     int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
@@ -617,25 +617,37 @@ public class WorldGenerator : MonoBehaviour
                 
             }
         }
-        for (int y = (heightMapSettings.size / 2) - (int) ((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); y <= (heightMapSettings.size / 2) + (int)((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); y += 4)
+        for (int y = (heightMapSettings.size / 2) - (int) (chunkRadius); y <= (heightMapSettings.size / 2) + (int)(chunkRadius); y += 4)
         {
-            for (int x = (heightMapSettings.size / 2) - (int)((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); x <= (heightMapSettings.size / 2) + (int)((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); x += 4)
+            for (int x = (heightMapSettings.size / 2) - (int)(chunkRadius); x <= (heightMapSettings.size / 2) + (int)(chunkRadius); x += 4)
             {
                 float scaledX = (float)(x - (2 * chunkX)) / resolution;
                 float scaledY = (float)(y - (2 * chunkY)) / resolution;
                 if (useJitteredPointDictionary && hasJitteredPoints)
                 {
+                    bool foundPoint = false;
                     Vector2 position = new Vector2(scaledX, scaledY);
-                    if (calculatedPointGrid.ContainsKey(position))
+                    foreach (Vector3 point in calculatedPointGrid.Keys)
                     {
-                        jitteredPoints.Add(calculatedPointGrid[position]);
-                        print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
-                        allPoints.Add(new Vector3((calculatedPointGrid[position].x + chunkX) * chunkSize, 1, (calculatedPointGrid[position].y + chunkY) * chunkSize));
-                        continue;
+                        if (!allPoints.Contains(new Vector3((point.x + chunkX) * chunkSize, 1, (point.y + chunkY) * chunkSize)))
+                        {
+                            //allPoints.Add(new Vector3((point.x + chunkX) * chunkSize, 1, (point.y + chunkY) * chunkSize));
+                        }
+                        if (Vector2.Distance(position, point) < 0.1f)
+                        {
+                            jitteredPoints.Add(calculatedPointGrid[point]);
+                            //print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
+                            allPoints.Add(new Vector4((calculatedPointGrid[point].x + chunkX) * chunkSize, 1, (calculatedPointGrid[point].y + chunkY) * chunkSize, chunkY));
+                            foundPoint = true;
+                            calculatedPointGrid.Remove(point);
+                            break;
+                        }
                     }
+                    if (foundPoint) { continue; }
                 }
+                //print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
                 jitteredPoints.Add(new Vector3(scaledX, scaledY, (float) prng.NextDouble() * 2f * Mathf.PI));
-                allPoints.Add(new Vector3((scaledX + chunkX) * chunkSize, 1, (scaledY + chunkY) * chunkSize));
+                //allPoints.Add(new Vector4((scaledX + chunkX) * chunkSize, 1, (scaledY + chunkY) * chunkSize, chunkY));
             }
         }
         Vector3[] jitteredPointArray = jitteredPoints.ToArray();
@@ -655,10 +667,14 @@ public class WorldGenerator : MonoBehaviour
             Vector3[] newJitteredPointArray = new Vector3[jitteredPointArray.Length];
             jitteredPointBuffer.GetData(newJitteredPointArray);
             Vector2 chunkPosition = new Vector2(chunkX, chunkY);
-            float pointArea = biomeBlendRange + 0.01f;
+            float pointArea = biomeBlendRange + 0.05f;
             for (int i = 0; i < newJitteredPointArray.Length; i++)
             {
                 if (newJitteredPointArray[i].x > pointArea && newJitteredPointArray[i].x < 1 - pointArea && newJitteredPointArray[i].y > pointArea && newJitteredPointArray[i].y < 1 - pointArea)
+                {
+                    continue;
+                }
+                if (newJitteredPointArray[i].x < -pointArea || newJitteredPointArray[i].x > 1 + pointArea || newJitteredPointArray[i].y < -pointArea || newJitteredPointArray[i].y > 1 + pointArea)
                 {
                     continue;
                 }
@@ -698,15 +714,22 @@ public class WorldGenerator : MonoBehaviour
                 }
             }
             calculatedPointsPerChunk.Remove(chunkPosition);
-            allPoints.Add(new Vector3((0.5f + chunkX) * chunkSize, 1, (0.5f + chunkY) * chunkSize));
+            allPoints.Add(new Vector4((0.5f + chunkX) * chunkSize, 1, (0.5f + chunkY) * chunkSize, chunkY));
         }
     }
 
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        foreach (Vector3 point in allPoints)
+        foreach (Vector4 point in allPoints)
         {
+            if (point.w == 0)
+            {
+                Gizmos.color = Color.red;
+            } else
+            {
+                Gizmos.color = Color.blue;
+            }
             Gizmos.DrawSphere(point, 1f);
         }
         

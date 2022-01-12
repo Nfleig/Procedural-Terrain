@@ -326,7 +326,7 @@ float4 BlendBiomes(float2 position, int curveIndex)
 		float centerWeight = distance(float2(0.5f, 0.5f), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / maximumRadius;
 		if (Distance <= BiomeBlendRadius)
 		{
-			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise * (1 - centerWeight) + 0.01f;
+			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise * (1 - centerWeight);
 			if (firstBlend)
 			{
 				color = BiomeGradientTexture[int2(curveIndex, jitteredPoints[i].z)];
