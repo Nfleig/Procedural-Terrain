@@ -160,6 +160,7 @@ public class WorldGenerator : MonoBehaviour
         //CreateWorld();
         calculatedPointsPerChunk.Clear();
         calculatedBiomes.Clear();
+        allPoints.Clear();
         Array.Sort(biomes, CompareTemperatures);
         DeleteWorld();
         scale = chunkSize * 2 / (float)heightMapSettings.size;
@@ -593,6 +594,7 @@ public class WorldGenerator : MonoBehaviour
 
     Dictionary<Vector2, Dictionary<Vector2, Vector3>> calculatedPointsPerChunk = new Dictionary<Vector2, Dictionary<Vector2, Vector3>>();
     Dictionary<Vector4, float> calculatedBiomes = new Dictionary<Vector4, float>();
+    List<Vector3> allPoints = new List<Vector3>();
 
     int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1};
     int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
@@ -600,7 +602,7 @@ public class WorldGenerator : MonoBehaviour
     void JitterPoints(int chunkX, int chunkY)
     {
         List<Vector3> jitteredPoints = new List<Vector3>();
-        float chunkSize = (float)heightMapSettings.size / (float)(heightMapSettings.size + 2);
+        float size = (float)heightMapSettings.size / (float)(heightMapSettings.size + 2);
         bool hasJitteredPoints = false;
         float resolution = heightMapSettings.size + 2;
         float chunkRadius = (heightMapSettings.size / 2) * Mathf.Sqrt(2);
@@ -615,23 +617,25 @@ public class WorldGenerator : MonoBehaviour
                 
             }
         }
-        for (int y = (int)((heightMapSettings.size / 2) - (chunkRadius + ((biomeBlendRange + 0.1) * resolution))); y <= (int)((heightMapSettings.size / 2) + (chunkRadius + (chunkRadius + ((biomeBlendRange + 0.1) * resolution)))); y += 4)
+        for (int y = (heightMapSettings.size / 2) - (int) ((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); y <= (heightMapSettings.size / 2) + (int)((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); y += 4)
         {
-            for (int x = (int)((heightMapSettings.size / 2) - (chunkRadius + ((biomeBlendRange + 0.1) * resolution))); x <= (int)((heightMapSettings.size / 2) + (chunkRadius + (chunkRadius + ((biomeBlendRange + 0.1) * resolution)))); x += 4)
+            for (int x = (heightMapSettings.size / 2) - (int)((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); x <= (heightMapSettings.size / 2) + (int)((chunkRadius + ((biomeBlendRange + 0.05) * resolution))); x += 4)
             {
-                float scaledX = (float)x / resolution;
-                float scaledY = (float)y / resolution;
+                float scaledX = (float)(x - (2 * chunkX)) / resolution;
+                float scaledY = (float)(y - (2 * chunkY)) / resolution;
                 if (useJitteredPointDictionary && hasJitteredPoints)
                 {
                     Vector2 position = new Vector2(scaledX, scaledY);
                     if (calculatedPointGrid.ContainsKey(position))
                     {
                         jitteredPoints.Add(calculatedPointGrid[position]);
-                        //print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
+                        print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
+                        allPoints.Add(new Vector3((calculatedPointGrid[position].x + chunkX) * chunkSize, 1, (calculatedPointGrid[position].y + chunkY) * chunkSize));
                         continue;
                     }
                 }
                 jitteredPoints.Add(new Vector3(scaledX, scaledY, (float) prng.NextDouble() * 2f * Mathf.PI));
+                allPoints.Add(new Vector3((scaledX + chunkX) * chunkSize, 1, (scaledY + chunkY) * chunkSize));
             }
         }
         Vector3[] jitteredPointArray = jitteredPoints.ToArray();
@@ -651,20 +655,20 @@ public class WorldGenerator : MonoBehaviour
             Vector3[] newJitteredPointArray = new Vector3[jitteredPointArray.Length];
             jitteredPointBuffer.GetData(newJitteredPointArray);
             Vector2 chunkPosition = new Vector2(chunkX, chunkY);
-            float pointArea = biomeBlendRange + 0.05f;
+            float pointArea = biomeBlendRange + 0.01f;
             for (int i = 0; i < newJitteredPointArray.Length; i++)
             {
-                if (newJitteredPointArray[i].x > pointArea && newJitteredPointArray[i].y < 1 - pointArea && newJitteredPointArray[i].y > pointArea && newJitteredPointArray[i].y < 1 - pointArea)
+                if (newJitteredPointArray[i].x > pointArea && newJitteredPointArray[i].x < 1 - pointArea && newJitteredPointArray[i].y > pointArea && newJitteredPointArray[i].y < 1 - pointArea)
                 {
                     continue;
                 }
-
-                for (int dir = 0; dir < 4; dir++)
+                //allPoints.Add(new Vector3((newJitteredPointArray[i].x + chunkX) * chunkSize, 1, (newJitteredPointArray[i].y + chunkY) * chunkSize));
+                for (int dir = 0; dir < 8; dir++)
                 {
-                    if (((cosValues[dir] <= 0 && newJitteredPointArray[i].x <= pointArea) || (cosValues[dir] >= 0 && newJitteredPointArray[i].x >= 1 - pointArea)) && ((sinValues[dir] <= 0 && newJitteredPointArray[i].y <= pointArea) || (sinValues[dir] >= 0 && newJitteredPointArray[i].y >= 1 - pointArea)))
+                    if ((cosValues[dir] == 0 || (cosValues[dir] < 0 && newJitteredPointArray[i].x <= pointArea) || (cosValues[dir] > 0 && newJitteredPointArray[i].x >= 1 - pointArea)) && (sinValues[dir] == 0 || (sinValues[dir] < 0 && newJitteredPointArray[i].y <= pointArea) || (sinValues[dir] > 0 && newJitteredPointArray[i].y >= 1 - pointArea)))
                     {
                         Vector2 newChunkPosition = new Vector2(chunkPosition.x + cosValues[dir], chunkPosition.y + sinValues[dir]);
-                        Vector3 newPoint = new Vector3(newJitteredPointArray[i].x - (chunkSize * cosValues[dir]), newJitteredPointArray[i].y - (chunkSize * sinValues[dir]), newJitteredPointArray[i].z);
+                        Vector3 newPoint = new Vector3(newJitteredPointArray[i].x - (size * cosValues[dir]), newJitteredPointArray[i].y - (size * sinValues[dir]), newJitteredPointArray[i].z);
                         //Vector3 newPoint = newJitteredPointArray[i];
 
                         if (chunkDictionary.ContainsKey(newChunkPosition))
@@ -674,25 +678,38 @@ public class WorldGenerator : MonoBehaviour
 
                         if (calculatedPointsPerChunk.ContainsKey(newChunkPosition))
                         {
-                            Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (chunkSize * cosValues[dir]), jitteredPointArray[i].y - (chunkSize * sinValues[dir]));
+                            Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (size * cosValues[dir]), jitteredPointArray[i].y - (size * sinValues[dir]));
                             if (!calculatedPointsPerChunk[newChunkPosition].ContainsKey(oldPoint))
                             {
                                 calculatedPointsPerChunk[newChunkPosition].Add(oldPoint, newPoint);
+                                //allPoints.Add(new Vector3((oldPoint.x + newChunkPosition.x) * chunkSize, 1, (oldPoint.y + newChunkPosition.y) * chunkSize));
                             }
                         }
                         else
                         {
                             Dictionary<Vector2, Vector3> calculatedPoints = new Dictionary<Vector2, Vector3>();
-                            Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (chunkSize * cosValues[dir]), jitteredPointArray[i].y - (chunkSize * sinValues[dir]));
+                            Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (size * cosValues[dir]), jitteredPointArray[i].y - (size * sinValues[dir]));
                             calculatedPoints.Add(oldPoint, newPoint);
                             calculatedPointsPerChunk.Add(newChunkPosition, calculatedPoints);
-                            
+                            //allPoints.Add(new Vector3((oldPoint.x + newChunkPosition.x) * chunkSize, 1, (oldPoint.y + newChunkPosition.y) * chunkSize));
+
                         }
                     }
                 }
             }
             calculatedPointsPerChunk.Remove(chunkPosition);
+            allPoints.Add(new Vector3((0.5f + chunkX) * chunkSize, 1, (0.5f + chunkY) * chunkSize));
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        foreach (Vector3 point in allPoints)
+        {
+            Gizmos.DrawSphere(point, 1f);
+        }
+        
     }
 
     float Round(float number, params float[] possibleResults)

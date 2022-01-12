@@ -1,2 +1,157 @@
 Base path: 'C:/Program Files/Unity/Hub/Editor/2019.3.5f1/Editor/Data', plugins path 'C:/Program Files/Unity/Hub/Editor/2019.3.5f1/Editor/Data/PlaybackEngines'
 Cmd: initializeCompiler
+Cmd: preprocessCompute
+  insize=12015 outsize=12024 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12024 outsize=64575 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 9 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(391): implicit truncation of vector type
+  api=9 insize=12024 outsize=226 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(391): implicit truncation of vector type
+  api=4 insize=12024 outsize=592 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(87): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(97): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(169): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(179): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(391): implicit truncation of vector type
+  api=4 insize=12024 outsize=13627 ok=1
+Cmd: preprocessCompute
+  insize=12028 outsize=12037 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12037 outsize=64575 ok=1
+Cmd: preprocessCompute
+  insize=12030 outsize=12039 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12039 outsize=64575 ok=1
+Cmd: preprocessCompute
+  insize=12030 outsize=12039 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(87): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 18 at TerrainShader.compute(97): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(169): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 18 at TerrainShader.compute(179): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12039 outsize=52131 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 9 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(391): implicit truncation of vector type
+  api=9 insize=12039 outsize=226 ok=1
+Cmd: preprocessCompute
+  insize=12028 outsize=12037 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12037 outsize=52679 ok=1
+Cmd: preprocessCompute
+  insize=12028 outsize=12037 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12037 outsize=2224 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 4 at TerrainShader.compute(87): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(97): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(169): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(179): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(391): implicit truncation of vector type
+  api=4 insize=12037 outsize=13627 ok=1
+Cmd: compileSnippet
+  api=4 type=0 insize=2002 outsize=650 kw= pd=UNITY_NO_DXT5nm UNITY_ENABLE_REFLECTION_BUFFERS UNITY_NO_CUBEMAP_ARRAY UNITY_NO_SCREENSPACE_SHADOWS UNITY_PBS_USE_BRDF2 SHADER_API_DESKTOP UNITY_HARDWARE_TIER3 UNITY_COLORSPACE_GAMMA UNITY_LIGHTMAP_DLDR_ENCODING ok=1
+Cmd: compileSnippet
+  api=4 type=1 insize=2002 outsize=298 kw= pd=UNITY_NO_DXT5nm UNITY_ENABLE_REFLECTION_BUFFERS UNITY_NO_CUBEMAP_ARRAY UNITY_NO_SCREENSPACE_SHADOWS UNITY_PBS_USE_BRDF2 SHADER_API_DESKTOP UNITY_HARDWARE_TIER3 UNITY_COLORSPACE_GAMMA UNITY_LIGHTMAP_DLDR_ENCODING ok=1
+Cmd: preprocessCompute
+  insize=12025 outsize=12034 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 18 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 18 at TerrainShader.compute(391): implicit truncation of vector type
+  api=18 insize=12034 outsize=2224 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 9 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(391): implicit truncation of vector type
+  api=9 insize=12034 outsize=1342 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 9 at (0): Buffer count exceeding default GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS. Shader might not work on all hw. Consider combining separate buffers into one containing struct elements.
+  error: 1 plat 9 at TerrainShader.compute(87): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 9 at TerrainShader.compute(97): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 9 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(169): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 9 at TerrainShader.compute(179): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 9 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(391): implicit truncation of vector type
+  api=9 insize=12034 outsize=28321 ok=1
+Cmd: compileComputeKernel
+  error: 1 plat 9 at TerrainShader.compute(120): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(161): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(202): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(301): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(385): implicit truncation of vector type
+  error: 1 plat 9 at TerrainShader.compute(391): implicit truncation of vector type
+  api=9 insize=12034 outsize=226 ok=1
