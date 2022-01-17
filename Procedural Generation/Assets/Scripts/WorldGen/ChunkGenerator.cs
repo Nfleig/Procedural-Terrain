@@ -16,10 +16,15 @@ public class ChunkGenerator : MonoBehaviour
     MeshRenderer meshRenderer;
     public Shader terrainShader;
     public static float depth;
+    private static WorldGenerator worldGen;
     int xSize;
     int ySize;
     float scale;
 
+    private void Awake()
+    {
+        worldGen = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
+    }
 
     public void InitializeTerrain(int xSize, int ySize, float scale)
     {

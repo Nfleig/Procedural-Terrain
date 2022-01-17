@@ -4,17 +4,18 @@ using UnityEngine;
 
 public class Chunk : MonoBehaviour
 {
-    public enum Biome {PLAINS, DESERT, TUNDRA}
-
+    public GameObject houseObject;
     private MeshRenderer renderer;
+    private ChunkGenerator generator;
     public Vector2 position;
     public bool hovering = false;
     public bool selected = false;
-    public Biome biome { get; }
+    public bool claimed = false;
     // Start is called before the first frame update
     void Start()
     {
         renderer = GetComponent<MeshRenderer>();
+        generator = GetComponent<ChunkGenerator>();
         //position = new Vector2(transform.position.x / 8, transform.position.y / 8);
     }
 
@@ -26,6 +27,17 @@ public class Chunk : MonoBehaviour
     public void Unload()
     {
         renderer.enabled = false;
+    }
+
+    public void Settle()
+    {
+        claimed = true;
+        Deselect();
+    }
+
+    public void SpawnHouses()
+    {
+        Instantiate(houseObject, transform);
     }
 
     // Update is called once per frame
@@ -42,12 +54,13 @@ public class Chunk : MonoBehaviour
 
     private void Select()
     {
-        transform.Translate(new Vector3(0f, 5f, 0f));
+        transform.position = new Vector3(transform.position.x, 5, transform.position.z);
+        //Settle();
     }
 
     private void Deselect()
     {
-        transform.Translate(new Vector3(0f, -5f, 0f));
+        transform.position = new Vector3(transform.position.x, 0, transform.position.z);
         selected = false;
     }
 
@@ -67,7 +80,7 @@ public class Chunk : MonoBehaviour
     {
         if (!hovering)
         {
-            //transform.Translate(new Vector3(0f, 3f, 0f));
+            //transform.position = new Vector3(transform.position.x, 3, transform.position.z);
             hovering = true;
         }
     }
@@ -75,6 +88,6 @@ public class Chunk : MonoBehaviour
     private void OnMouseExit()
     {
         hovering = false;
-        //transform.Translate(new Vector3(0f, -3f, 0f));
+        transform.position = new Vector3(transform.position.x, 0, transform.position.z);
     }
 }

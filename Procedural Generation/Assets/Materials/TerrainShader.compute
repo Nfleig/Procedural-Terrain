@@ -1,6 +1,5 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel HeightMap
-#pragma kernel BiomeMap
 #pragma kernel JitterPoints
 #pragma kernel SetMapSettings
 
@@ -43,6 +42,7 @@ struct GPUMapSettings
 struct Output
 {
 	int chunkBiome;
+	float averageElevation;
 };
 
 RWStructuredBuffer<float3> jitteredPoints;
@@ -68,6 +68,7 @@ StructuredBuffer<Octave> HeightMapOctaves;
 StructuredBuffer<Octave> TemperatureMapOctaves;
 StructuredBuffer<Octave> MoistureMapOctaves;
 StructuredBuffer<Octave> BiomeBlendMapOctaves;
+StructuredBuffer<Octave> JitterMapOctaves;
 
 float Resolution;
 float CurveResolution;
@@ -118,6 +119,47 @@ float CalculateTemperatureNoise(float2 position)
 	height = noiseHeight / sumAmplitudes;
 	int curveIndex = (int) (height * CurveResolution);
 	height = HeightCurveTexture[int2(curveIndex, 1)];
+	return height;
+}
+
+float CalculateJitterNoise(float2 position)
+{
+	float mapSize = maps[0].Size / Resolution;
+	float2 chunkPosition = ChunkPosition;
+	while (position.x < 0)
+	{
+		chunkPosition.x -= 1;
+		position.x += mapSize;
+	}
+	while (position.x > mapSize)
+	{
+		chunkPosition.x += 1;
+		position.x -= mapSize;
+	}
+	while (position.y < 0)
+	{
+		chunkPosition.y -= 1;
+		position.y += mapSize;
+	}
+	while (position.y > mapSize)
+	{
+		chunkPosition.y += 1;
+		position.y -= mapSize;
+	}
+	float2 offset = chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
+	float height;
+	float noiseHeight = 0;
+	float sumAmplitudes = 0;
+	for (int i = 0; i < 4; i++)
+	{
+		float noiseX = (position.x + offset.x) / 0.001;
+		float noiseY = (position.y + offset.y) / 0.001;
+		noiseHeight += JitterMapOctaves[i].amplitude * ClassicNoise(float2(noiseX * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.x, noiseY * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.y)) / 2 + 0.0875f;
+		sumAmplitudes += JitterMapOctaves[i].amplitude;
+	}
+	height = noiseHeight / sumAmplitudes;
+	int curveIndex = (int) (height * CurveResolution);
+	height = HeightCurveTexture[int2(curveIndex, 4)];
 	return height;
 }
 
@@ -271,7 +313,11 @@ void SetMapSettings(uint3 id : SV_DispatchThreadID)
 	} else if (MapID == 2) //Moisture Map
 	{
 		MoistureMapOctaves = Octaves;
+	}else if (MapID == 3) //Jitter Map
+	{
+		
 	}
+
 }
 
 [numthreads(10, 1, 1)]
@@ -280,10 +326,12 @@ void JitterPoints(uint3 id : SV_DispatchThreadID)
 	float3 oldPoint = jitteredPoints[id.x];
 	if (oldPoint.z % 1 != 0)
 	{
-		float dir = oldPoint.z;
+		float x = oldPoint.x / Resolution;
+		float y = oldPoint.y / Resolution;
+		float dir = CalculateJitterNoise(float2(x, y)) * 2 * 3.14159;
 	
 		float dist = 1 / Resolution;
-		float3 newPoint = float3(oldPoint.x + (cos(dir) * dist), oldPoint.y + (sin(dir) * dist), 0.0);
+		float3 newPoint = float3(x + (cos(dir) * dist), y + (sin(dir) * dist), 0.0);
 		newPoint.z = (float) GetBiome(float2(newPoint.x, newPoint.y));
 	
 		if (OutputBuffer[0].chunkBiome == -2)
@@ -295,38 +343,24 @@ void JitterPoints(uint3 id : SV_DispatchThreadID)
 	}
 }
 
-[numthreads(8, 8, 1)]
-void BiomeMap(uint3 id : SV_DispatchThreadID)
-{
-	float height = HeightMapTexture[id.xy];
-	float x = id.x / Resolution;
-	float y = id.y / Resolution;
-	ColorMapTexture[id.xy] = HeightMapTexture[id.xy];
-	
-	//int biome = GetBiome(float2(x, y));
-	int biome = 0;
-	if (biome != -1)
-	{
-		int gradientIndex = (int) (HeightMapTexture[id.xy] * 100);
-		ColorMapTexture[id.xy] = BiomeGradientTexture[int2(gradientIndex, 1)];
-
-	}
-}
-
 float4 BlendBiomes(float2 position, int curveIndex)
 {
-	float4 color = float4(0.0, 0.0, 0.0, 0.0);
-	bool firstBlend = true;
+	float4 color = float4(0, 0, 0, 0);
+	bool firstBlend = false;
 	float noise = CalculateBiomeBlendNoise(position);
 	float radius = sqrt(2) / 2;
 	float maximumRadius = radius * sqrt(2) + (1 / Resolution);
+	float sumWeights = 0;
+	int points = 0;
 	for (int i = 0; i < jitteredPointsLength; i++)
 	{
 		float Distance = distance(position, float2(jitteredPoints[i].x, jitteredPoints[i].y));
-		float centerWeight = distance(float2(0.5f, 0.5f), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / maximumRadius;
+		float centerWeight = distance(float2(Size / 2 / Resolution, Size / 2 / Resolution), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / maximumRadius;
 		if (Distance <= BiomeBlendRadius)
 		{
-			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise * (1 - centerWeight);
+			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise + 0.05;
+			sumWeights += distanceWeight;
+			points++;
 			if (firstBlend)
 			{
 				color = BiomeGradientTexture[int2(curveIndex, jitteredPoints[i].z)];
@@ -338,6 +372,7 @@ float4 BlendBiomes(float2 position, int curveIndex)
 			}
 		}
 	}
+	//return float4((sumWeights / points) * 4, (sumWeights / points) * 4, (sumWeights / points) * 4, 0);
 	return color;
 }
 
@@ -356,7 +391,7 @@ float BlendHeights(float2 position, int curveIndex)
 		float biomeWeight = pow(max(0, pow(radius, 2) - pow(dx, 2) - pow(dy, 2)), 2);
 		if (Distance <= BiomeBlendRadius)
 		{
-			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * (noise) * (1 - centerWeight) + 0.01f;
+			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise + 0.05;
 			if (firstBlend)
 			{
 				height = BiomeCurveTexture[int2(curveIndex, jitteredPoints[i].z)].r;
@@ -364,7 +399,7 @@ float BlendHeights(float2 position, int curveIndex)
 			}
 			else
 			{
-				height = lerp(height, BiomeCurveTexture[int2(curveIndex, jitteredPoints[i].z)].r, biomeWeight);
+				height = lerp(height, BiomeCurveTexture[int2(curveIndex, jitteredPoints[i].z)].r, distanceWeight);
 			}
 		}
 	}
@@ -389,6 +424,7 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 	else
 	{
 		noise = HeightCurveTexture[int2(curveIndex, 0)];
+
 	}
 	HeightMapTexture[id.xy] = float4(noise, noise, noise, 0.0);
 	curveIndex = (int) (noise * CurveResolution);
@@ -417,6 +453,5 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 	else
 	{
 		ColorMapTexture[id.xy] = BiomeGradientTexture[int2(curveIndex, 2)];
-
 	}
 }

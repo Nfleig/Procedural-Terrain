@@ -31,17 +31,17 @@ public class WorldGenerator : MonoBehaviour
     public bool drawBiomes;
     public bool useBiomeBlending;
     public bool useBiomeHeights;
-    public bool useJitteredPointDictionary;
-    public bool useGPU;
+    private bool useJitteredPointDictionary;
+    public bool flatMap;
+    public bool drawJitteredPoints;
     public int GPUCurveResolution;
     public Biome[] biomes;
     public float biomeBlendRange;
     private System.Random prng;
-    float minimumHeight = Mathf.Infinity;
-    float maximumHeight = -Mathf.Infinity;
     public Texture2D heightCurveTexture;
     public Texture2D biomeGradientTexture;
     public Texture2D biomeCurveTexture;
+    public AnimationCurve biomeHeightSmoothingCurve;
 
     Queue<MapThreadInfo> mapDataThreadInfoQueue = new Queue<MapThreadInfo>();
     Queue<ChunkGenerator> chunkQueue = new Queue<ChunkGenerator>();
@@ -95,6 +95,17 @@ public class WorldGenerator : MonoBehaviour
             this.frequency = frequency;
             this.offset = offset;
             this.amplitude = amplitude;
+        }
+    }
+    struct Output
+    {
+        public int chunkBiome;
+        public float averageElevation;
+
+        public Output(int chunkBiome, float averageElevation)
+        {
+            this.chunkBiome = chunkBiome;
+            this.averageElevation = averageElevation;
         }
     }
 
@@ -178,6 +189,10 @@ public class WorldGenerator : MonoBehaviour
         jitterMapSettings.GenerateOctaveArray(prng);
         InitializeTerrainShader();
         ChunkGenerator.depth = depth;
+        if (flatMap)
+        {
+            ChunkGenerator.depth = 0;
+        }
         
 
     }
@@ -235,13 +250,6 @@ public class WorldGenerator : MonoBehaviour
         chunkQueue.Clear();
     }
 
-    public Chunk RequestChunk(int x, int y)
-    {
-        Chunk newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<Chunk>();
-        RequestChunk(x, y, newChunk.GetComponent<ChunkGenerator>(), GenerateChunk);
-        return newChunk;
-    }
-
     public void GenerateChunk(MapData mapData)
     {
         ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
@@ -266,7 +274,6 @@ public class WorldGenerator : MonoBehaviour
         int x = (int)position.x;
         int y = (int)position.y;
         int heightMapKernel = terrainShader.FindKernel("HeightMap");
-        int biomeMapKernel = terrainShader.FindKernel("BiomeMap");
         terrainShader.SetTexture(heightMapKernel, "HeightMapTexture", chunk.heightMapTexture);
         terrainShader.SetTexture(heightMapKernel, "HeightMapTexture", chunk.heightMapTexture);
         terrainShader.SetTexture(heightMapKernel, "ColorMapTexture", chunk.colorMapTexture);
@@ -278,21 +285,27 @@ public class WorldGenerator : MonoBehaviour
 
     public Texture2D BakeMapCurves()
     {
-        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 4);
+        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 6);
         for (int i = 0; i < curveTexture.width; i++)
         {
             float curveIndex = (float)i / (float)curveTexture.width;
-            float curveValue = heightMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            float curveValue = heightMapSettings.curve.Evaluate(curveIndex);
             curveTexture.SetPixel(i, 0, new Color(curveValue, curveValue, curveValue));
 
-            curveValue = temperatureMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            curveValue = temperatureMapSettings.curve.Evaluate(curveIndex);
             curveTexture.SetPixel(i, 1, new Color(curveValue, curveValue, curveValue));
 
-            curveValue = moistureMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            curveValue = moistureMapSettings.curve.Evaluate(curveIndex);
             curveTexture.SetPixel(i, 2, new Color(curveValue, curveValue, curveValue));
 
-            curveValue = biomeBlendMapSettings.curve.Evaluate((float)i / (float)curveTexture.width);
+            curveValue = biomeBlendMapSettings.curve.Evaluate(curveIndex);
             curveTexture.SetPixel(i, 3, new Color(curveValue, curveValue, curveValue));
+
+            curveValue = jitterMapSettings.curve.Evaluate(curveIndex);
+            curveTexture.SetPixel(i, 4, new Color(curveValue, curveValue, curveValue));
+
+            curveValue = biomeHeightSmoothingCurve.Evaluate(curveIndex);
+            curveTexture.SetPixel(i, 5, new Color(curveValue, curveValue, curveValue));
         }
         curveTexture.Apply();
         return curveTexture;
@@ -331,82 +344,9 @@ public class WorldGenerator : MonoBehaviour
 
     public void GenerateChunk(MapData mapData, Texture2D texture)
     {
-
         ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
         newChunk.GenerateTerrain(texture);
     }
-
-    void RequestChunk(int x, int y, ChunkGenerator chunk, Action<MapData> callback)
-    {
-        ThreadStart threadStart = delegate
-        {
-            MapDataThread(x, y, chunk, callback);
-        };
-
-        new Thread(threadStart).Start();
-    }
-
-    void MapDataThread(int x, int y, ChunkGenerator chunk, Action<MapData> callback)
-    {
-
-        Vector2 chunkPosition = new Vector2(x, y);
-        
-        float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
-        float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
-        float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
-        Color[] colorMap;
-        if (!useBiomeBlending)
-        {
-            colorMap = GenerateColorMap(heightMap, new Vector2(x, y));
-        }
-        else
-        {
-            if (IsOneBiome(temperatureMap, moistureMap))
-            {
-                colorMap = GenerateSingleBiomeColorMap(heightMap, chunkPosition);
-            }
-            else
-            {
-                colorMap = GenerateBiomeBlendMap(new Vector2(x, y), heightMap);
-            }
-        }
-        MapData mapData = new MapData(heightMap, colorMap, chunk);
-
-        lock (mapDataThreadInfoQueue)
-        {
-            mapDataThreadInfoQueue.Enqueue(new MapThreadInfo(callback, mapData));
-        }
-    }
-
-    
-    public Chunk GenerateChunkImmediate(int x, int y)
-    {
-        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
-        Vector2 chunkPosition = new Vector2(x, y);
-        float[,] heightMap = GenerateHeightMap(heightMapSettings, chunkPosition);
-        float[,] temperatureMap = GenerateHeightMap(temperatureMapSettings, chunkPosition);
-        float[,] moistureMap = GenerateHeightMap(moistureMapSettings, chunkPosition);
-        Color[] colorMap;
-        if (!useBiomeBlending)
-        {
-            colorMap = GenerateColorMap(heightMap, new Vector2(x, y));
-        }
-        else
-        {
-            if (IsOneBiome(temperatureMap, moistureMap))
-            {
-                colorMap = GenerateSingleBiomeColorMap(heightMap, chunkPosition);
-            } else
-            {
-                colorMap = GenerateBiomeBlendMap(new Vector2(x, y), heightMap);
-            }
-        }
-        GenerateChunk(new MapData(heightMap, colorMap, newChunk));
-        Chunk chunk = newChunk.GetComponent<Chunk>();
-        chunk.position = new Vector2(x, y);
-        return chunk;
-    }
-
 
     public void CreateWorld()
     {
@@ -524,16 +464,6 @@ public class WorldGenerator : MonoBehaviour
         public int OctaveCount;
     }
 
-    struct Output
-    {
-        public int chunkBiome;
-
-        public Output(int chunkBiome)
-        {
-            this.chunkBiome = chunkBiome;
-        }
-    }
-
     //https://gamedev.stackexchange.com/questions/71014/passing-input-to-compute-shader
     void InitializeTerrainShader()
     {
@@ -551,7 +481,7 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetFloat("BiomeBlendRadius", biomeBlendRange);
         terrainShader.SetBool("BiomeHeights", useBiomeHeights);
 
-        outputBuffer = new ComputeBuffer(1, sizeof(int));
+        outputBuffer = new ComputeBuffer(1, sizeof(int) + sizeof(float));
         terrainShader.SetBuffer(jitterKernel, "OutputBuffer", outputBuffer);
 
         GPUBiome[] GPUBiomes = new GPUBiome[biomes.Length];
@@ -570,6 +500,7 @@ public class WorldGenerator : MonoBehaviour
         GPUSetMapSettings(kernel, biomeBlendMapSettings, 3);
         GPUSetMapSettings(jitterKernel, temperatureMapSettings, 1);
         GPUSetMapSettings(jitterKernel, moistureMapSettings, 2);
+        GPUSetMapSettings(jitterKernel, jitterMapSettings, 4);
         GPUSetMapSettings(kernel, heightMapSettings, 0);
 
         GPUMapSettings[] maps = new GPUMapSettings[4];
@@ -604,50 +535,53 @@ public class WorldGenerator : MonoBehaviour
         List<Vector3> jitteredPoints = new List<Vector3>();
         float size = (float)heightMapSettings.size / (float)(heightMapSettings.size + 2);
         bool hasJitteredPoints = false;
-        float resolution = heightMapSettings.size + 2;
+        float resolution = heightMapSettings.size;
         float chunkRadius = (heightMapSettings.size / 2) * Mathf.Sqrt(2);
         float boundary = (chunkRadius - (heightMapSettings.size / 2)) / resolution;
-        Dictionary<Vector2, Vector3> calculatedPointGrid = new Dictionary<Vector2, Vector3>();
+        float pointArea = biomeBlendRange + 0.0f;
+        bool[] quadrants = new bool[8];
+        Dictionary<Vector2, Vector3> calculatedPointGrid;
         if (useJitteredPointDictionary)
         {
             hasJitteredPoints = calculatedPointsPerChunk.ContainsKey(new Vector2(chunkX, chunkY));
             if (hasJitteredPoints)
             {
                 calculatedPointGrid = calculatedPointsPerChunk[new Vector2(chunkX, chunkY)];
-                
+                foreach (Vector3 point in calculatedPointGrid.Values)
+                {
+                    jitteredPoints.Add(point);
+                    quadrants[0] = quadrants[0] || (point.x <= pointArea && point.y <= pointArea);
+                    quadrants[1] = quadrants[1] || (point.x > pointArea && point.x < 1 - pointArea && point.y <= pointArea);
+                    quadrants[2] = quadrants[2] || (point.x >= 1 - pointArea && point.y <= pointArea);
+                    quadrants[3] = quadrants[3] || (point.x >= 1 - pointArea && point.y > pointArea && point.y < 1 - pointArea);
+                    quadrants[4] = quadrants[4] || (point.x >= 1 - pointArea && point.y >= 1 - pointArea);
+                    quadrants[5] = quadrants[5] || (point.x > pointArea && point.x < 1 - pointArea && point.y >= 1 - pointArea);
+                    quadrants[6] = quadrants[6] || (point.x <= pointArea && point.y >= 1 - pointArea);
+                    quadrants[7] = quadrants[7] || (point.x <= pointArea && point.x < 1 - pointArea && point.y >= 1 - pointArea);
+                }
             }
         }
-        for (int y = (heightMapSettings.size / 2) - (int) (chunkRadius); y <= (heightMapSettings.size / 2) + (int)(chunkRadius); y += 4)
+        for (float y = -pointArea * resolution; y <= (1 + pointArea) * resolution; y += heightMapSettings.size / 16)
         {
-            for (int x = (heightMapSettings.size / 2) - (int)(chunkRadius); x <= (heightMapSettings.size / 2) + (int)(chunkRadius); x += 4)
+            for (float x = -pointArea * resolution; x <= (1 + pointArea) * resolution; x += heightMapSettings.size / 16)
             {
-                float scaledX = (float)(x - (2 * chunkX)) / resolution;
-                float scaledY = (float)(y - (2 * chunkY)) / resolution;
+                float scaledX = (float)x / resolution;
+                float scaledY = (float)y / resolution;
                 if (useJitteredPointDictionary && hasJitteredPoints)
                 {
-                    bool foundPoint = false;
-                    Vector2 position = new Vector2(scaledX, scaledY);
-                    foreach (Vector3 point in calculatedPointGrid.Keys)
-                    {
-                        if (!allPoints.Contains(new Vector3((point.x + chunkX) * chunkSize, 1, (point.y + chunkY) * chunkSize)))
-                        {
-                            //allPoints.Add(new Vector3((point.x + chunkX) * chunkSize, 1, (point.y + chunkY) * chunkSize));
-                        }
-                        if (Vector2.Distance(position, point) < 0.1f)
-                        {
-                            jitteredPoints.Add(calculatedPointGrid[point]);
-                            //print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
-                            allPoints.Add(new Vector4((calculatedPointGrid[point].x + chunkX) * chunkSize, 1, (calculatedPointGrid[point].y + chunkY) * chunkSize, chunkY));
-                            foundPoint = true;
-                            calculatedPointGrid.Remove(point);
-                            break;
-                        }
-                    }
-                    if (foundPoint) { continue; }
+                    if(quadrants[0] && (scaledX <= pointArea && scaledY <= pointArea)) { continue; }
+                    if(quadrants[1] && (scaledX > pointArea && scaledX < 1 - pointArea && scaledY <= pointArea)) { continue; }
+                    if(quadrants[2] && (scaledX >= 1 - pointArea && scaledY <= pointArea)) { continue; }
+                    if(quadrants[3] && (scaledX >= 1 - pointArea && scaledY > pointArea && scaledY < 1 - pointArea)) { continue; }
+                    if(quadrants[4] && (scaledX >= 1 - pointArea && scaledY >= 1 - pointArea)) { continue; }
+                    if(quadrants[5] && (scaledX > pointArea && scaledX < 1 - pointArea && scaledY >= 1 - pointArea)) { continue; }
+                    if(quadrants[6] && (scaledX <= pointArea && scaledY >= 1 - pointArea)) { continue; }
+                    if(quadrants[7] && (scaledX <= pointArea && scaledX < 1 - pointArea && scaledY >= 1 - pointArea)) { continue; }
                 }
                 //print(chunkX + ", " + chunkY + ": " + scaledX + " " + scaledY);
-                jitteredPoints.Add(new Vector3(scaledX, scaledY, (float) prng.NextDouble() * 2f * Mathf.PI));
-                //allPoints.Add(new Vector4((scaledX + chunkX) * chunkSize, 1, (scaledY + chunkY) * chunkSize, chunkY));
+                jitteredPoints.Add(new Vector3(x, y, 0.1f));
+                //SampleHeightMap(jitterMapSettings, new Vector2(x, y), new Vector2(chunkX, chunkY)) * 2f * Mathf.PI
+                //allPoints.Add(new Vector4(x + (chunkX * chunkSize), 1, y + (chunkY * chunkSize), chunkY));
             }
         }
         Vector3[] jitteredPointArray = jitteredPoints.ToArray();
@@ -655,36 +589,43 @@ public class WorldGenerator : MonoBehaviour
         jitteredPointBuffer.SetData(jitteredPointArray);
         terrainShader.SetBuffer(terrainShader.FindKernel("JitterPoints"), "jitteredPoints", jitteredPointBuffer);
         Output[] outputArray = new Output[1];
-        outputArray[0] = new Output(-2);
+        outputArray[0] = new Output(-2, 0);
         terrainShader.SetBuffer(terrainShader.FindKernel("JitterPoints"), "OutputBuffer", outputBuffer);
         outputBuffer.SetData(outputArray);
         terrainShader.SetInt("jitteredPointsLength", jitteredPointArray.Length);
         terrainShader.Dispatch(terrainShader.FindKernel("JitterPoints"), (int) (jitteredPointArray.Length / 10) + 1, 1, 1);
         terrainShader.SetBuffer(terrainShader.FindKernel("HeightMap"), "jitteredPoints", jitteredPointBuffer);
         terrainShader.SetBuffer(terrainShader.FindKernel("HeightMap"), "OutputBuffer", outputBuffer);
+
+        if (drawJitteredPoints)
+        {
+            Vector3[] nJitteredPointArray = new Vector3[jitteredPointArray.Length];
+            jitteredPointBuffer.GetData(nJitteredPointArray);
+            foreach (Vector3 point in nJitteredPointArray)
+            {
+                allPoints.Add(new Vector4((point.x + chunkX) * chunkSize, 50, (point.y + chunkY) * chunkSize, chunkY));
+            }
+        }
+
         if (useJitteredPointDictionary)
         {
             Vector3[] newJitteredPointArray = new Vector3[jitteredPointArray.Length];
             jitteredPointBuffer.GetData(newJitteredPointArray);
             Vector2 chunkPosition = new Vector2(chunkX, chunkY);
-            float pointArea = biomeBlendRange + 0.05f;
             for (int i = 0; i < newJitteredPointArray.Length; i++)
             {
+                //allPoints.Add(new Vector4((newJitteredPointArray[i].x + chunkX) * chunkSize, 1, (newJitteredPointArray[i].y + chunkY) * chunkSize, chunkY));
                 if (newJitteredPointArray[i].x > pointArea && newJitteredPointArray[i].x < 1 - pointArea && newJitteredPointArray[i].y > pointArea && newJitteredPointArray[i].y < 1 - pointArea)
                 {
                     continue;
                 }
-                if (newJitteredPointArray[i].x < -pointArea || newJitteredPointArray[i].x > 1 + pointArea || newJitteredPointArray[i].y < -pointArea || newJitteredPointArray[i].y > 1 + pointArea)
-                {
-                    continue;
-                }
-                //allPoints.Add(new Vector3((newJitteredPointArray[i].x + chunkX) * chunkSize, 1, (newJitteredPointArray[i].y + chunkY) * chunkSize));
                 for (int dir = 0; dir < 8; dir++)
                 {
                     if ((cosValues[dir] == 0 || (cosValues[dir] < 0 && newJitteredPointArray[i].x <= pointArea) || (cosValues[dir] > 0 && newJitteredPointArray[i].x >= 1 - pointArea)) && (sinValues[dir] == 0 || (sinValues[dir] < 0 && newJitteredPointArray[i].y <= pointArea) || (sinValues[dir] > 0 && newJitteredPointArray[i].y >= 1 - pointArea)))
                     {
                         Vector2 newChunkPosition = new Vector2(chunkPosition.x + cosValues[dir], chunkPosition.y + sinValues[dir]);
-                        Vector3 newPoint = new Vector3(newJitteredPointArray[i].x - (size * cosValues[dir]), newJitteredPointArray[i].y - (size * sinValues[dir]), newJitteredPointArray[i].z);
+                        Vector3 oPoint = jitteredPointArray[i];
+                        Vector3 newPoint = new Vector3(newJitteredPointArray[i].x - (1 * cosValues[dir]), newJitteredPointArray[i].y - (1 * sinValues[dir]), newJitteredPointArray[i].z);
                         //Vector3 newPoint = newJitteredPointArray[i];
 
                         if (chunkDictionary.ContainsKey(newChunkPosition))
@@ -714,7 +655,7 @@ public class WorldGenerator : MonoBehaviour
                 }
             }
             calculatedPointsPerChunk.Remove(chunkPosition);
-            allPoints.Add(new Vector4((0.5f + chunkX) * chunkSize, 1, (0.5f + chunkY) * chunkSize, chunkY));
+            //allPoints.Add(new Vector4((-pointArea + chunkX) * chunkSize, 1, (-pointArea + chunkY) * chunkSize, chunkY + 1));
         }
     }
 
@@ -735,21 +676,6 @@ public class WorldGenerator : MonoBehaviour
         
     }
 
-    float Round(float number, params float[] possibleResults)
-    {
-        float result = number;
-        float currentDifference = 10000000;
-        foreach (float num in possibleResults)
-        {
-            float difference = Mathf.Abs(number - num);
-            if (Mathf.Abs(number - num) < currentDifference)
-            {
-                result = num;
-                currentDifference = difference;
-            }
-        }
-        return result;
-    }
 
     void GPUSetMapSettings(int kernel, MapSettings settings, int id)
     {
@@ -775,6 +701,10 @@ public class WorldGenerator : MonoBehaviour
 
             case 3:
                 terrainShader.SetBuffer(kernel, "BiomeBlendMapOctaves", octaveBuffer);
+                break;
+
+            case 4:
+                terrainShader.SetBuffer(kernel, "JitterMapOctaves", octaveBuffer);
                 break;
         }
     }
@@ -833,201 +763,12 @@ public class WorldGenerator : MonoBehaviour
         return height;
     }
 
-    Color[] GenerateColorMap(float[,] heightMap, Vector2 chunkPosition)
-    {
-        Color[] colors = new Color[(int)Math.Pow(heightMapSettings.size + 1, 2)];
-
-        float[] yValues = new float[colors.Length];
-
-        int i = 0;
-        for (int z = 0; z <= heightMapSettings.size; z++)
-        {
-            for (int x = 0; x <= heightMapSettings.size; x++)
-            {
-                float y = heightMap[x, z] * depth;
-                maximumHeight = Mathf.Max(y, maximumHeight);
-                minimumHeight = Mathf.Min(y, minimumHeight);
-
-                yValues[i++] = y;
-            }
-        }
-        //print(minimumHeight + " " + maximumHeight);
-        i = 0;
-        for (int z = 0; z <= heightMapSettings.size; z++)
-        {
-            for (int x = 0; x <= heightMapSettings.size; x++)
-            {
-                float y = Mathf.InverseLerp(minimumHeight, maximumHeight, yValues[i]);
-                Color color = biomes[2].color.Evaluate(y);
-
-                if (!drawBiomes)
-                {
-                    colors[i++] = color;
-                    continue;
-                }
-
-                //float temperature = temperatureMap[x, z];
-                float temperature = SampleHeightMap(temperatureMapSettings, new Vector2(x, z), chunkPosition);
-                //float moisture = moistureMap[x, z];
-                float moisture = SampleHeightMap(moistureMapSettings, new Vector2(x, z), chunkPosition);
-
-                Biome currentBiome = getBiome(temperature, moisture);
-                Biome otherBiome = new Biome();
-                if (currentBiome.color != null)
-                {
-                    float temperatureDifference = currentBiome.temperature - temperature;
-                    float moistureDifference = currentBiome.moisture - moisture;
-                    float average = (temperatureDifference + moistureDifference) / 2;
-                    if (temperatureDifference < biomeBlendRange)
-                    {
-                        Biome test = getBiome(temperature + biomeBlendRange, moisture + biomeBlendRange);
-                        if (test.name != null && !test.name.Equals(currentBiome.name))
-                        {
-                            otherBiome = test;
-                        } else
-                        {
-                            test = getBiome(temperature - biomeBlendRange, moisture - biomeBlendRange);
-                            if (test.name != null && !test.name.Equals(currentBiome.name))
-                            {
-                                otherBiome = test;
-                            }
-                        }
-                    }
-                    Color biomeColor = currentBiome.color.Evaluate(y);
-                    if (otherBiome.color != null)
-                    {
-                        Color otherColor = otherBiome.color.Evaluate(y);
-                        float blendRange = Mathf.InverseLerp(-biomeBlendRange, biomeBlendRange, temperatureDifference);
-                        color = Color.Lerp(color, biomeColor, blendRange);
-                    }
-                    else
-                    {
-                        color = biomeColor;
-                    }
-                }
-                colors[i++] = color;
-
-                //colors[i] = heightColor;
-
-            }
-        }
-        //print(SampleHeightMap(temperatureMapSettings, new Vector2(0, 0), chunkPosition) == temperatureMap[0, 0]);
-        return colors;
-    }
-
-    public bool IsOneBiome(float[,] temperatureMap, float[,] moistureMap)
-    {
-        Biome biome = getBiome(temperatureMap[0,0], moistureMap[0,0]);
-        for (int y = 0; y <= heightMapSettings.size; y++)
-        {
-            for (int x = 0; x <= heightMapSettings.size; x++)
-            {
-                if (!getBiome(temperatureMap[x, y], moistureMap[x, y]).Equals(biome))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    public Color[] GenerateSingleBiomeColorMap(float[,] heightMap, Vector2 chunkPosition)
-    {
-        Color[] biomeColors = new Color[(int)Math.Pow(heightMapSettings.size + 1, 2)];
-        Biome biome = getBiome(new Vector2(0, 0), chunkPosition);
-        int i = 0;
-        for (int y = 0; y <= heightMapSettings.size; y++)
-        {
-            for (int x = 0; x <= heightMapSettings.size; x++)
-            {
-                biomeColors[i++] = biome.color.Evaluate(heightMap[x, y]);
-            }
-        }
-        return biomeColors;
-    }
-
     /*
      * 
      * GUIDE: https://noiseposti.ng/posts/2021-03-13-Fast-Biome-Blending-Without-Squareness.html
      * https://gamedev.stackexchange.com/questions/191685/problems-blending-biomes-together-in-relation-to-moisture-temperature/191702#191702
      * 
-     * TODO: Make this into a compute shader
-     * 
      */
-
-    public Color[] GenerateBiomeBlendMap(Vector2 chunkPosition, float[,] heightMap)
-    {
-        float jitterDistance = biomeBlendRange;
-        float chunkRadius = Vector2.Distance(new Vector2(0, 0), new Vector2(heightMapSettings.size / 2, heightMapSettings.size / 2));
-        float r = 2 + (2 * jitterDistance) + 1f + chunkRadius;
-        //print(SampleHeightMap(temperatureMapSettings, new Vector2(64.1f, 64.1f), new Vector2(0, 0)) == SampleHeightMap(temperatureMapSettings, new Vector2(0.1f, 0.1f), new Vector2(1, 1)));
-        float randomDirection = (float)prng.NextDouble() * 2 * Mathf.PI;
-        float xPos = (heightMapSettings.size / 2 + 3) + (jitterDistance * Mathf.Cos(randomDirection));
-        float yPos = (heightMapSettings.size / 2 + 3) + (jitterDistance * Mathf.Sin(randomDirection));
-        Vector2 centerPoint = new Vector2(xPos, yPos);
-
-        Color[,] biomeColors = new Color[heightMapSettings.size + 1, heightMapSettings.size + 1];
-        float worldPointRadius = 10f;
-        for (int x = (int)((heightMapSettings.size / 2) - chunkRadius); x <= (heightMapSettings.size / 2) + chunkRadius; x += 4)
-        //for (int x = 0; x <= heightMapSettings.size; x += 2)
-            {
-            for (int y = (int)((heightMapSettings.size / 2) - chunkRadius); y <= (heightMapSettings.size / 2) + chunkRadius; y += 4)
-            //for (int y = 0; y <= heightMapSettings.size; y += 2)
-            {
-                Vector2 jitterPoint;
-                if (x == heightMapSettings.size / 2 + 3 && y == heightMapSettings.size / 2 + 3)
-                {
-                    jitterPoint = centerPoint;
-                }
-                else
-                {
-                    randomDirection = (float)prng.NextDouble() * 2 * Mathf.PI;
-                    xPos = (float)x + (jitterDistance * Mathf.Cos(randomDirection));
-                    yPos = (float)y + (jitterDistance * Mathf.Sin(randomDirection));
-                    jitterPoint = new Vector2(xPos, yPos);
-                }
-                float distance = Vector2.Distance(centerPoint, jitterPoint);
-                if (distance < r)
-                {
-                    Biome biome = getBiome(jitterPoint, chunkPosition);
-
-                    for (int wx = (int)Mathf.Max(0, jitterPoint.x - worldPointRadius); wx < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoint.x + worldPointRadius); wx++)
-                    {
-                        for (int wy = (int)Mathf.Max(0, jitterPoint.y - worldPointRadius); wy < (int)Mathf.Min(heightMapSettings.size + 1, jitterPoint.y + worldPointRadius); wy++)
-                        {
-
-                            if (biomeColors[wx, wy].Equals(Color.clear))
-                            {
-                                biomeColors[wx, wy] = biome.color.Evaluate(heightMap[wx, wy]);
-                            }
-                            else
-                            {
-                                distance = Vector2.Distance(new Vector2(wx, wy), jitterPoint);
-                                distance = Mathf.InverseLerp(0, worldPointRadius, distance);
-                                float biomeBlendNoise = SampleHeightMap(biomeBlendMapSettings, new Vector2(wx, wy), chunkPosition);
-                                float finalWeight = (1 - distance) * biomeBlendNoise + 0.01f;
-                                Color biomeColor = biome.color.Evaluate(heightMap[wx, wy]);
-                                //print(biomeColors[x, y]);
-                                biomeColors[wx, wy] = Color.Lerp(biomeColors[wx, wy], biomeColor, finalWeight);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Color[] finalColors = new Color[(int)Math.Pow(heightMapSettings.size + 1, 2)];
-        int i = 0;
-        for (int y = 0; y <= heightMapSettings.size; y++)
-        {
-            for (int x = 0; x <= heightMapSettings.size; x++)
-            {
-                finalColors[i] = biomeColors[x, y];
-                i++;
-            }
-        }
-        return finalColors;
-    }
-
 
     public Biome getBiome(float temperature, float moisture)
     {
