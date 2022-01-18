@@ -34,7 +34,6 @@ struct Octave
 struct GPUMapSettings
 {
 	float Scale;
-	float Size;
 	float2 Offset;
 	int OctaveCount;
 };
@@ -83,7 +82,7 @@ int OctaveCount;
 
 float CalculateTemperatureNoise(float2 position)
 {
-	float mapSize = maps[0].Size / Resolution;
+	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
 	{
@@ -124,7 +123,7 @@ float CalculateTemperatureNoise(float2 position)
 
 float CalculateJitterNoise(float2 position)
 {
-	float mapSize = maps[0].Size / Resolution;
+	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
 	{
@@ -165,7 +164,7 @@ float CalculateJitterNoise(float2 position)
 
 float CalculateBiomeBlendNoise(float2 position)
 {
-	float mapSize = maps[0].Size / Resolution;
+	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
 	{
@@ -206,7 +205,7 @@ float CalculateBiomeBlendNoise(float2 position)
 
 float CalculateMoistureNoise(float2 position)
 {
-	float mapSize = maps[0].Size / Resolution;
+	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
 	{
@@ -264,7 +263,7 @@ int GetBiome(float2 position)
 }
 float CalculateNoise(float2 position)
 {
-	float mapSize = maps[0].Size / Resolution;
+	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
 	{

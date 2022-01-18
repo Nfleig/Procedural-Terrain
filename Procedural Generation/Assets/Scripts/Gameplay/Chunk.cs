@@ -7,10 +7,22 @@ public class Chunk : MonoBehaviour
     public GameObject houseObject;
     private MeshRenderer renderer;
     private ChunkGenerator generator;
+    private static GameManager gameManager;
+    private static CameraController camera;
     public Vector2 position;
     public bool hovering = false;
     public bool selected = false;
     public bool claimed = false;
+    private bool loaded;
+
+
+    private void Awake()
+    {
+        gameManager = GameObject.FindWithTag("GameController").GetComponent<GameManager>();
+        camera = GameObject.FindWithTag("Player").GetComponent<CameraController>();
+        loaded = true;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -19,25 +31,38 @@ public class Chunk : MonoBehaviour
         //position = new Vector2(transform.position.x / 8, transform.position.y / 8);
     }
 
+    public bool isLoaded()
+    {
+        return loaded;
+    }
+
     public void Load()
     {
         renderer.enabled = true;
+        loaded = true;
     }
 
     public void Unload()
     {
         renderer.enabled = false;
+        loaded = false;
     }
 
     public void Settle()
     {
         claimed = true;
+        SpawnHouses();
         Deselect();
+        if (gameManager.fogOfWar)
+        {
+            camera.ShowChunks(position, 0);
+        }
     }
 
     public void SpawnHouses()
     {
-        Instantiate(houseObject, transform);
+        GameObject house = Instantiate(houseObject, transform);
+        house.transform.localPosition = new Vector3(64, 50, 64);
     }
 
     // Update is called once per frame
@@ -52,10 +77,15 @@ public class Chunk : MonoBehaviour
         }
     }
 
-    private void Select()
+    public void Select()
     {
-        transform.position = new Vector3(transform.position.x, 5, transform.position.z);
-        //Settle();
+        if (claimed)
+        {
+            transform.position = new Vector3(transform.position.x, 5, transform.position.z);
+        } else
+        {
+            Settle();
+        }
     }
 
     private void Deselect()
@@ -80,7 +110,7 @@ public class Chunk : MonoBehaviour
     {
         if (!hovering)
         {
-            //transform.position = new Vector3(transform.position.x, 3, transform.position.z);
+            transform.position = new Vector3(transform.position.x, 3, transform.position.z);
             hovering = true;
         }
     }

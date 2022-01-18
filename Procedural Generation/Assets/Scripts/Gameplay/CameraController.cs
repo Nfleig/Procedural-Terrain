@@ -13,11 +13,13 @@ public class CameraController : MonoBehaviour
     public float XRotateThreshold;
     public int VisibleChunks;
     public bool screenSaver;
-    public WorldGenerator worldGen;
+    private static WorldGenerator worldGen;
+    private static GameManager gameManager;
 
     private Camera camera;
     private bool isClicking;
     private bool start = false;
+    private bool firstFrame = true;
 
     private float rotX = 0;
 
@@ -25,13 +27,32 @@ public class CameraController : MonoBehaviour
     void Awake()
     {
         camera = Camera.main;
+        worldGen = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
+        gameManager = GameObject.FindWithTag("GameController").GetComponent<GameManager>();
     }
 
 
     // Update is called once per frame
     void Update()
     {
+        if (gameManager.fogOfWar)
+        {
+            if (firstFrame)
+            {
+                firstFrame = false;
+                Chunk starterChunk = worldGen.GPUGenerateChunk(0, 0);
+                worldGen.chunkDictionary.Add(new Vector2(0, 0), starterChunk);
+                starterChunk.Settle();
+            }
+        }
         GenerateChunks();
+        if (start || !worldGen.IsGenerating())
+        {
+            start = true;
+        } else
+        {
+            return;
+        }
         float xInput = Input.GetAxis("Horizontal");
         float zInput = Input.GetAxis("Vertical");
         if (Input.GetButtonDown("Fire2")){
@@ -45,10 +66,6 @@ public class CameraController : MonoBehaviour
             Application.Quit();
         }
         Vector3 dir = transform.forward * zInput + transform.right * xInput;
-        if (start || !worldGen.IsGenerating())
-        {
-            start = true;
-        }
         if (screenSaver && start)
         {
             dir = new Vector3(1, 0, 1);
@@ -68,6 +85,43 @@ public class CameraController : MonoBehaviour
             camera.transform.position += camera.transform.forward * scroll * 5;
         }
 
+    }
+
+    int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1 };
+    int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
+    public void RevealChunks(Vector2 position)
+    {
+        for (int dir = 0; dir < 4; dir++)
+        {
+            Vector2 newPosition = new Vector2(position.x + cosValues[dir], position.y + sinValues[dir]);
+            if (!worldGen.chunkDictionary.ContainsKey(newPosition))
+            {
+                ShowChunks(newPosition, 0);
+            }
+        }
+    }
+
+    public void ShowChunks(Vector2 position, int depth)
+    {
+        ChunkGenerator newChunkGenerator;
+        if (!worldGen.chunkDictionary.ContainsKey(position))
+        {
+            Chunk newChunk = worldGen.GPUGenerateChunk((int)position.x, (int)position.y);
+            worldGen.chunkDictionary.Add(position, newChunk);
+            newChunkGenerator = newChunk.GetComponent<ChunkGenerator>();
+        } else
+        {
+            newChunkGenerator = worldGen.chunkDictionary[position].GetComponent<ChunkGenerator>();
+        }
+        if (depth >= 10 || (newChunkGenerator.averageElevation > 0.05f && depth != 0))
+        {
+            return;
+        }
+        for (int dir = 0; dir < 4; dir++)
+        {
+            Vector2 newPosition = new Vector2(position.x + cosValues[dir], position.y + sinValues[dir]);
+            ShowChunks(newPosition, depth + 1);
+        }
     }
 
     void GenerateChunks()
@@ -96,14 +150,21 @@ public class CameraController : MonoBehaviour
                 Vector2 chunkCoord = new Vector2(chunkCoordX + x, chunkCoordY + y);
                 if (worldGen.chunkDictionary.ContainsKey(chunkCoord))
                 {
-                    worldGen.chunkDictionary[chunkCoord].Load();
+                    if (!worldGen.chunkDictionary[chunkCoord].isLoaded())
+                    {
+
+                        worldGen.chunkDictionary[chunkCoord].Load();
+                    }
                 }
                 else
                 {
-                    //print(chunkCoord);
-                    Chunk newChunk = worldGen.GPUGenerateChunk((int)chunkCoord.x, (int)chunkCoord.y);
-                    worldGen.chunkDictionary.Add(chunkCoord, newChunk);
-                    //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
+                    if (!gameManager.fogOfWar)
+                    {
+                        //print(chunkCoord);
+                        Chunk newChunk = worldGen.GPUGenerateChunk((int)chunkCoord.x, (int)chunkCoord.y);
+                        worldGen.chunkDictionary.Add(chunkCoord, newChunk);
+                        //print(chunkCoordX + " " + chunkCoordY + " " + chunkCoord);
+                    }
 
                 }
             }

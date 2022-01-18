@@ -18,7 +18,7 @@ public class WorldGenerator : MonoBehaviour
     public MapSettings jitterMapSettings;
 
     private float step;
-
+    public int chunkResolution;
     public float chunkSize;
     public int chunkGenBatchSize;
     private float scale;
@@ -51,7 +51,6 @@ public class WorldGenerator : MonoBehaviour
     [Serializable]
     public class MapSettings
     {
-        public int size;
         public float scale;
         public AnimationCurve curve;
         public int octaves;
@@ -60,9 +59,8 @@ public class WorldGenerator : MonoBehaviour
         public Vector2 offset;
         public Octave[] octaveArray;
 
-        public MapSettings(int size, float scale, AnimationCurve curve, int octaves, float persistance, float lacunarity, Vector2 offset, System.Random prng)
+        public MapSettings(float scale, AnimationCurve curve, int octaves, float persistance, float lacunarity, Vector2 offset, System.Random prng)
         {
-            this.size = size;
             this.scale = scale;
             this.curve = curve;
             this.octaves = octaves;
@@ -174,7 +172,7 @@ public class WorldGenerator : MonoBehaviour
         allPoints.Clear();
         Array.Sort(biomes, CompareTemperatures);
         DeleteWorld();
-        scale = chunkSize * 2 / (float)heightMapSettings.size;
+        scale = chunkSize * 2 / (float)chunkResolution;
         //print(adjustedNoiseScale);
         step = chunkSize;
         if (randomSeed)
@@ -253,14 +251,14 @@ public class WorldGenerator : MonoBehaviour
     public void GenerateChunk(MapData mapData)
     {
         ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
-        //newChunk.GenerateTerrain(mapData.heightMap, heightMapSettings.size, heightMapSettings.size, scale, depth, mapData.colorMap);
-        newChunk.InitializeTerrain(heightMapSettings.size, heightMapSettings.size, scale);
+        //newChunk.GenerateTerrain(mapData.heightMap, chunkResolution, chunkResolution, scale, depth, mapData.colorMap);
+        newChunk.InitializeTerrain(chunkResolution, chunkResolution, scale);
     }
 
     public Chunk GPUGenerateChunk(int x, int y)
     {
         ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
-        newChunk.InitializeTerrain(heightMapSettings.size, heightMapSettings.size, scale);
+        newChunk.InitializeTerrain(chunkResolution, chunkResolution, scale);
 
         newChunk.GetComponent<Chunk>().position = new Vector2(x, y);
         chunkQueue.Enqueue(newChunk);
@@ -411,8 +409,8 @@ public class WorldGenerator : MonoBehaviour
     public float[,] GenerateHeightMap(MapSettings settings, Vector2 position)
     {
         AnimationCurve heightCurve = new AnimationCurve(settings.curve.keys);
-        Vector2 offset = settings.offset + (position * settings.size);
-        int mapSize = settings.size + 1;
+        Vector2 offset = settings.offset + (position * chunkResolution);
+        int mapSize = chunkResolution + 1;
         float[,] heightMap = new float[mapSize, mapSize];
         for (int x = 0; x < mapSize; x++)
         {
@@ -437,7 +435,6 @@ public class WorldGenerator : MonoBehaviour
     {
         GPUMapSettings mapSettings = new GPUMapSettings();
         Octave[] octaves = settings.getOctaveArray();
-        mapSettings.Size = settings.size;
         mapSettings.Scale = settings.scale;
         mapSettings.Offset = settings.offset;
         mapSettings.OctaveCount = octaves.Length;
@@ -459,7 +456,6 @@ public class WorldGenerator : MonoBehaviour
     struct GPUMapSettings
     {
         public float Scale;
-        public float Size;
         public Vector2 Offset;
         public int OctaveCount;
     }
@@ -473,8 +469,8 @@ public class WorldGenerator : MonoBehaviour
         int jitterKernel = terrainShader.FindKernel("JitterPoints");
         terrainShader.SetFloats("Offset", settings.offset.x, settings.offset.y);
         terrainShader.SetFloat("Scale", settings.scale);
-        terrainShader.SetFloat("Size", settings.size);
-        terrainShader.SetFloat("Resolution", settings.size + 2);
+        terrainShader.SetFloat("Size", chunkResolution);
+        terrainShader.SetFloat("Resolution", chunkResolution + 2);
         terrainShader.SetFloat("CurveResolution", GPUCurveResolution);
         terrainShader.SetBool("DrawBiomes", drawBiomes);
         terrainShader.SetBool("BiomeBlending", useBiomeBlending);
@@ -508,7 +504,7 @@ public class WorldGenerator : MonoBehaviour
         maps[1] = ConvertToGPUSettings(temperatureMapSettings);
         maps[2] = ConvertToGPUSettings(moistureMapSettings);
         maps[3] = ConvertToGPUSettings(biomeBlendMapSettings);
-        int mapSize = sizeof(float) * 4 + sizeof(int);
+        int mapSize = sizeof(float) *  + sizeof(int);
         mapBuffer = new ComputeBuffer(4, mapSize);
         mapBuffer.SetData(maps);
         terrainShader.SetBuffer(kernel, "maps", mapBuffer);
@@ -528,16 +524,16 @@ public class WorldGenerator : MonoBehaviour
     List<Vector4> allPoints = new List<Vector4>();
 
     int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1};
-    int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
+    int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1};
 
     void JitterPoints(int chunkX, int chunkY)
     {
         List<Vector3> jitteredPoints = new List<Vector3>();
-        float size = (float)heightMapSettings.size / (float)(heightMapSettings.size + 2);
+        float size = (float)chunkResolution / (float)(chunkResolution + 2);
         bool hasJitteredPoints = false;
-        float resolution = heightMapSettings.size;
-        float chunkRadius = (heightMapSettings.size / 2) * Mathf.Sqrt(2);
-        float boundary = (chunkRadius - (heightMapSettings.size / 2)) / resolution;
+        float resolution = chunkResolution;
+        float chunkRadius = (chunkResolution / 2) * Mathf.Sqrt(2);
+        float boundary = (chunkRadius - (chunkResolution / 2)) / resolution;
         float pointArea = biomeBlendRange + 0.0f;
         bool[] quadrants = new bool[8];
         Dictionary<Vector2, Vector3> calculatedPointGrid;
@@ -561,9 +557,9 @@ public class WorldGenerator : MonoBehaviour
                 }
             }
         }
-        for (float y = -pointArea * resolution; y <= (1 + pointArea) * resolution; y += heightMapSettings.size / 16)
+        for (float y = -pointArea * resolution; y <= (1 + pointArea) * resolution; y += chunkResolution / 16)
         {
-            for (float x = -pointArea * resolution; x <= (1 + pointArea) * resolution; x += heightMapSettings.size / 16)
+            for (float x = -pointArea * resolution; x <= (1 + pointArea) * resolution; x += chunkResolution / 16)
             {
                 float scaledX = (float)x / resolution;
                 float scaledY = (float)y / resolution;
@@ -727,28 +723,28 @@ public class WorldGenerator : MonoBehaviour
     public float SampleHeightMap(MapSettings settings, Vector2 position, Vector2 chunkPosition)
     {
         AnimationCurve heightCurve = new AnimationCurve(settings.curve.keys);
-        int mapSize = settings.size + 1;
+        int mapSize = chunkResolution + 1;
         while (position.x < 0)
         {
             chunkPosition.x -= 1;
-            position.x += settings.size;
+            position.x += chunkResolution;
         }
-        while (position.x > settings.size)
+        while (position.x > chunkResolution)
         {
             chunkPosition.x += 1;
-            position.x -= settings.size;
+            position.x -= chunkResolution;
         }
         while (position.y < 0)
         {
             chunkPosition.y -= 1;
-            position.y += settings.size;
+            position.y += chunkResolution;
         }
-        while (position.y > settings.size)
+        while (position.y > chunkResolution)
         {
             chunkPosition.y += 1;
-            position.y -= settings.size;
+            position.y -= chunkResolution;
         }
-        Vector2 offset = settings.offset + (chunkPosition * settings.size);
+        Vector2 offset = settings.offset + (chunkPosition * chunkResolution);
         float height;
         float noiseHeight = 0;
         float sumAmplitudes = 0;

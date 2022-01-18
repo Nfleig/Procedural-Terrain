@@ -17,13 +17,18 @@ public class ChunkGenerator : MonoBehaviour
     public Shader terrainShader;
     public static float depth;
     private static WorldGenerator worldGen;
+    private Chunk chunk;
     int xSize;
     int ySize;
     float scale;
 
+    public float averageElevation;
+
+
     private void Awake()
     {
         worldGen = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
+        chunk = GetComponent<Chunk>();
     }
 
     public void InitializeTerrain(int xSize, int ySize, float scale)
@@ -48,61 +53,6 @@ public class ChunkGenerator : MonoBehaviour
         GetComponent<MeshRenderer>().sharedMaterial.SetTexture("HeightMap", heightMap);
     }
 
-    public void GenerateTerrain(float[,] heightMap, int xSize, int ySize, float scale, float depth, Color[] colors)
-    {
-        mesh = new Mesh();
-        GetComponent<MeshFilter>().mesh = mesh;
-        vertices = new Vector3[(xSize + 1) * (ySize + 1)];
-        int i = 0;
-        for (int z = 0; z <= ySize; z++)
-        {
-            for (int x = 0; x <= xSize; x++)
-            {
-                float y = heightMap[x, z] * depth;
-
-                vertices[i++] = new Vector3(x * scale, y, z * scale);
-            }
-        }
-        triangles = new int[xSize * ySize * 6];
-        int vert = 0;
-        int tris = 0;
-        for (int z = 0; z < ySize; z++)
-        {
-            for (int x = 0; x < xSize; x++)
-            {
-                triangles[tris] = vert;
-                triangles[tris + 1] = vert + 1 + xSize;
-                triangles[tris + 2] = vert + 1;
-                triangles[tris + 3] = vert + 1;
-                triangles[tris + 4] = vert + 1 + xSize;
-                triangles[tris + 5] = vert + 2 + xSize;
-
-                vert++;
-                tris += 6;
-            }
-            vert++;
-        }
-        /*
-        uvs = new Vector2[vertices.Length];
-        i = 0;
-        for (int z = 0; z <= ySize; z++)
-        {
-            for (int x = 0; x <= xSize; x++)
-            {
-                uvs[i] = new Vector2((float)x / xSize, (float)z / ySize);
-                //print(uvs[i]);
-                i++;
-            }
-        }
-        */
-
-        this.colors = colors;
-
-        updateMesh();
-
-        GetComponent<MeshCollider>().sharedMesh = mesh;
-    }
-
     public void DeformMesh()
     {
 
@@ -117,7 +67,9 @@ public class ChunkGenerator : MonoBehaviour
         {
             for (int x = 0; x <= xSize; x++)
             {
-                vertices[i++] = new Vector3(x * scale, texture.GetPixel(x, z).r * depth, z * scale);
+                float height = texture.GetPixel(x, z).r;
+                averageElevation = (averageElevation + height) / 2;
+                vertices[i++] = new Vector3(x * scale, height * depth, z * scale);
             }
         }
         triangles = new int[xSize * ySize * 6];
