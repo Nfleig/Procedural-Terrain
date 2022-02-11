@@ -10,9 +10,10 @@ public class Chunk : MonoBehaviour
     private static GameManager gameManager;
     private static CameraController camera;
     public Vector2 position;
-    public bool hovering = false;
-    public bool selected = false;
-    public bool claimed = false;
+    public bool hovering;
+    public bool selected;
+    public bool claimed;
+    public bool habitable;
     private bool loaded;
 
 
@@ -29,6 +30,11 @@ public class Chunk : MonoBehaviour
         renderer = GetComponent<MeshRenderer>();
         generator = GetComponent<ChunkGenerator>();
         //position = new Vector2(transform.position.x / 8, transform.position.y / 8);
+    }
+
+    public ChunkGenerator GetGenerator()
+    {
+        return generator;
     }
 
     public bool isLoaded()
@@ -62,7 +68,7 @@ public class Chunk : MonoBehaviour
     public void SpawnHouses()
     {
         GameObject house = Instantiate(houseObject, transform);
-        house.transform.localPosition = new Vector3(64, 50, 64);
+        house.transform.localPosition = new Vector3(16, 5, 16);
     }
 
     // Update is called once per frame
@@ -79,12 +85,13 @@ public class Chunk : MonoBehaviour
 
     public void Select()
     {
-        if (claimed)
+        if (claimed || !habitable)
         {
-            transform.position = new Vector3(transform.position.x, 5, transform.position.z);
+            transform.position = new Vector3(transform.position.x, 3, transform.position.z);
         } else
         {
-            Settle();
+            //Settle();
+            transform.position = new Vector3(transform.position.x, 3, transform.position.z);
         }
     }
 
@@ -110,7 +117,7 @@ public class Chunk : MonoBehaviour
     {
         if (!hovering)
         {
-            transform.position = new Vector3(transform.position.x, 3, transform.position.z);
+            transform.position = new Vector3(transform.position.x, 1, transform.position.z);
             hovering = true;
         }
     }
@@ -118,6 +125,8 @@ public class Chunk : MonoBehaviour
     private void OnMouseExit()
     {
         hovering = false;
+        selected = false;
         transform.position = new Vector3(transform.position.x, 0, transform.position.z);
     }
+
 }

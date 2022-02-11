@@ -23,6 +23,8 @@ public class ChunkGenerator : MonoBehaviour
     float scale;
 
     public float averageElevation;
+    public float[] biomeData;
+    public int biome;
 
 
     private void Awake()
@@ -53,6 +55,8 @@ public class ChunkGenerator : MonoBehaviour
         GetComponent<MeshRenderer>().sharedMaterial.SetTexture("HeightMap", heightMap);
     }
 
+    int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1 };
+    int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
     public void DeformMesh()
     {
 
@@ -67,6 +71,7 @@ public class ChunkGenerator : MonoBehaviour
         {
             for (int x = 0; x <= xSize; x++)
             {
+                //float height = Mathf.PerlinNoise(x * 0.3f, z * 0.3f);
                 float height = texture.GetPixel(x, z).r;
                 averageElevation = (averageElevation + height) / 2;
                 vertices[i++] = new Vector3(x * scale, height * depth, z * scale);
@@ -105,6 +110,7 @@ public class ChunkGenerator : MonoBehaviour
         meshRenderer = GetComponent<MeshRenderer>();
         updateMesh();
         GetComponent<MeshCollider>().sharedMesh = mesh;
+        FinishedGenerating();
     }
 
     void updateMesh()
@@ -121,5 +127,28 @@ public class ChunkGenerator : MonoBehaviour
         meshRenderer.sharedMaterial = chunkMaterial;
     }
 
-    
+    public void FinishedGenerating()
+    {
+        CalculateIsHabitable();
+        float maxPercent = 0;
+        for (int i = 0; i < biomeData.Length; i++)
+        {
+            if (biomeData[i] > maxPercent)
+            {
+                biome = i;
+                maxPercent = biomeData[i];
+            }
+        }
+    }
+
+    void CalculateIsHabitable()
+    {
+        if (biomeData[3] > 0.66 || averageElevation > 0.1)
+        {
+            if (chunk)
+            {
+                chunk.habitable = false;
+            }
+        }
+    }
 }

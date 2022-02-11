@@ -23,6 +23,7 @@ public class WorldGenerator : MonoBehaviour
     public int chunkGenBatchSize;
     private float scale;
     public float depth;
+    public float worldScale;
     private bool isGenerating = true;
 
     //Test seed: -1207784884
@@ -37,11 +38,11 @@ public class WorldGenerator : MonoBehaviour
     public int GPUCurveResolution;
     public Biome[] biomes;
     public float biomeBlendRange;
+    public float biomeBlendLevel;
     private System.Random prng;
     public Texture2D heightCurveTexture;
     public Texture2D biomeGradientTexture;
     public Texture2D biomeCurveTexture;
-    public AnimationCurve biomeHeightSmoothingCurve;
 
     Queue<MapThreadInfo> mapDataThreadInfoQueue = new Queue<MapThreadInfo>();
     Queue<ChunkGenerator> chunkQueue = new Queue<ChunkGenerator>();
@@ -186,7 +187,7 @@ public class WorldGenerator : MonoBehaviour
         biomeBlendMapSettings.GenerateOctaveArray(prng);
         jitterMapSettings.GenerateOctaveArray(prng);
         InitializeTerrainShader();
-        ChunkGenerator.depth = depth;
+        ChunkGenerator.depth = depth * worldScale;
         if (flatMap)
         {
             ChunkGenerator.depth = 0;
@@ -266,6 +267,7 @@ public class WorldGenerator : MonoBehaviour
         return newChunk.GetComponent<Chunk>();
     }
 
+
     void CalculateChunk(ChunkGenerator chunk)
     {
         Vector2 position = chunk.GetComponent<Chunk>().position;
@@ -278,12 +280,16 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetFloats("ChunkPosition", x, y);
         JitterPoints(x, y);
         terrainShader.Dispatch(heightMapKernel, chunk.heightMapTexture.width / 5, chunk.heightMapTexture.width / 5, 1);
+        Output[] outputs = new Output[1];
+        outputBuffer.GetData(outputs);
+        //print(outputs[0].averageElevation);
+        chunk.biomeData = biomeData;
         chunk.DeformMesh();
     }
 
     public Texture2D BakeMapCurves()
     {
-        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 6);
+        Texture2D curveTexture = new Texture2D(GPUCurveResolution, 5);
         for (int i = 0; i < curveTexture.width; i++)
         {
             float curveIndex = (float)i / (float)curveTexture.width;
@@ -301,9 +307,6 @@ public class WorldGenerator : MonoBehaviour
 
             curveValue = jitterMapSettings.curve.Evaluate(curveIndex);
             curveTexture.SetPixel(i, 4, new Color(curveValue, curveValue, curveValue));
-
-            curveValue = biomeHeightSmoothingCurve.Evaluate(curveIndex);
-            curveTexture.SetPixel(i, 5, new Color(curveValue, curveValue, curveValue));
         }
         curveTexture.Apply();
         return curveTexture;
@@ -435,7 +438,7 @@ public class WorldGenerator : MonoBehaviour
     {
         GPUMapSettings mapSettings = new GPUMapSettings();
         Octave[] octaves = settings.getOctaveArray();
-        mapSettings.Scale = settings.scale;
+        mapSettings.Scale = settings.scale * worldScale;
         mapSettings.Offset = settings.offset;
         mapSettings.OctaveCount = octaves.Length;
         return mapSettings;
@@ -468,7 +471,7 @@ public class WorldGenerator : MonoBehaviour
         int kernel = terrainShader.FindKernel("HeightMap");
         int jitterKernel = terrainShader.FindKernel("JitterPoints");
         terrainShader.SetFloats("Offset", settings.offset.x, settings.offset.y);
-        terrainShader.SetFloat("Scale", settings.scale);
+        terrainShader.SetFloat("Scale", settings.scale * worldScale);
         terrainShader.SetFloat("Size", chunkResolution);
         terrainShader.SetFloat("Resolution", chunkResolution + 2);
         terrainShader.SetFloat("CurveResolution", GPUCurveResolution);
@@ -478,6 +481,8 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetBool("BiomeHeights", useBiomeHeights);
 
         outputBuffer = new ComputeBuffer(1, sizeof(int) + sizeof(float));
+        Output[] outputs = new Output[1];
+        outputs[0].averageElevation = 0.5f;
         terrainShader.SetBuffer(jitterKernel, "OutputBuffer", outputBuffer);
 
         GPUBiome[] GPUBiomes = new GPUBiome[biomes.Length];
@@ -523,6 +528,8 @@ public class WorldGenerator : MonoBehaviour
     Dictionary<Vector4, float> calculatedBiomes = new Dictionary<Vector4, float>();
     List<Vector4> allPoints = new List<Vector4>();
 
+    float[] biomeData;
+
     int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1};
     int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1};
 
@@ -557,9 +564,9 @@ public class WorldGenerator : MonoBehaviour
                 }
             }
         }
-        for (float y = -pointArea * resolution; y <= (1 + pointArea) * resolution; y += chunkResolution / 16)
+        for (float y = -pointArea * resolution; y <= (1 + pointArea) * resolution; y += chunkResolution / 16 * biomeBlendLevel)
         {
-            for (float x = -pointArea * resolution; x <= (1 + pointArea) * resolution; x += chunkResolution / 16)
+            for (float x = -pointArea * resolution; x <= (1 + pointArea) * resolution; x += chunkResolution / 16 * biomeBlendLevel)
             {
                 float scaledX = (float)x / resolution;
                 float scaledY = (float)y / resolution;
@@ -592,16 +599,18 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.Dispatch(terrainShader.FindKernel("JitterPoints"), (int) (jitteredPointArray.Length / 10) + 1, 1, 1);
         terrainShader.SetBuffer(terrainShader.FindKernel("HeightMap"), "jitteredPoints", jitteredPointBuffer);
         terrainShader.SetBuffer(terrainShader.FindKernel("HeightMap"), "OutputBuffer", outputBuffer);
-
-        if (drawJitteredPoints)
+        Vector3[] nJitteredPointArray = new Vector3[jitteredPointArray.Length];
+        jitteredPointBuffer.GetData(nJitteredPointArray);
+        biomeData = new float[biomes.Length];
+        foreach (Vector3 point in nJitteredPointArray)
         {
-            Vector3[] nJitteredPointArray = new Vector3[jitteredPointArray.Length];
-            jitteredPointBuffer.GetData(nJitteredPointArray);
-            foreach (Vector3 point in nJitteredPointArray)
+            biomeData[(int)point.z] += 1/(float)nJitteredPointArray.Length;
+            if (drawJitteredPoints)
             {
                 allPoints.Add(new Vector4((point.x + chunkX) * chunkSize, 50, (point.y + chunkY) * chunkSize, chunkY));
             }
         }
+        
 
         if (useJitteredPointDictionary)
         {
@@ -750,8 +759,8 @@ public class WorldGenerator : MonoBehaviour
         float sumAmplitudes = 0;
         foreach (Octave octave in settings.getOctaveArray())
         {
-            float noiseX = (position.x + offset.x) / ((float)mapSize * settings.scale) - 0.5f;
-            float noiseY = (position.y + offset.y) / ((float)mapSize * settings.scale) - 0.5f;
+            float noiseX = (position.x + offset.x) / ((float)mapSize * settings.scale * worldScale) - 0.5f;
+            float noiseY = (position.y + offset.y) / ((float)mapSize * settings.scale * worldScale) - 0.5f;
             noiseHeight += octave.amplitude * Mathf.PerlinNoise(noiseX * octave.frequency + octave.offset.x, noiseY * octave.frequency + octave.offset.y);
             sumAmplitudes += octave.amplitude;
         }
@@ -794,7 +803,16 @@ public class WorldGenerator : MonoBehaviour
     {
         if (x.temperature == y.temperature)
         {
-            return 0;
+            if (x.moisture == y.moisture)
+            {
+                return 0;
+            } else if (x.moisture > y.moisture)
+            {
+                return 1;
+            } else
+            {
+                return -1;
+            }
         } else if (x.temperature > y.temperature)
         {
             return 1;

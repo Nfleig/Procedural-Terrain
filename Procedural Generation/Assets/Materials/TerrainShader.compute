@@ -112,7 +112,7 @@ float CalculateTemperatureNoise(float2 position)
 	{
 		float noiseX = (position.x + offset.x) / maps[1].Scale;
 		float noiseY = (position.y + offset.y) / maps[1].Scale;
-		noiseHeight += TemperatureMapOctaves[i].amplitude * ClassicNoise(float2(noiseX * TemperatureMapOctaves[i].frequency + TemperatureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + TemperatureMapOctaves[i].offset.y)) / 2 + 0.0875f;
+		noiseHeight += TemperatureMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * TemperatureMapOctaves[i].frequency + TemperatureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + TemperatureMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += TemperatureMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
@@ -153,7 +153,7 @@ float CalculateJitterNoise(float2 position)
 	{
 		float noiseX = (position.x + offset.x) / 0.001;
 		float noiseY = (position.y + offset.y) / 0.001;
-		noiseHeight += JitterMapOctaves[i].amplitude * ClassicNoise(float2(noiseX * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.x, noiseY * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.y)) / 2 + 0.0875f;
+		noiseHeight += JitterMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.x, noiseY * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += JitterMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
@@ -194,7 +194,7 @@ float CalculateBiomeBlendNoise(float2 position)
 	{
 		float noiseX = (position.x + offset.x) / maps[3].Scale;
 		float noiseY = (position.y + offset.y) / maps[3].Scale;
-		noiseHeight += BiomeBlendMapOctaves[i].amplitude * ClassicNoise(float2(noiseX * BiomeBlendMapOctaves[i].frequency + BiomeBlendMapOctaves[i].offset.x, noiseY * BiomeBlendMapOctaves[i].frequency + BiomeBlendMapOctaves[i].offset.y)) / 2 + 0.0875f;
+		noiseHeight += BiomeBlendMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * BiomeBlendMapOctaves[i].frequency + BiomeBlendMapOctaves[i].offset.x, noiseY * BiomeBlendMapOctaves[i].frequency + BiomeBlendMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += BiomeBlendMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
@@ -235,7 +235,7 @@ float CalculateMoistureNoise(float2 position)
 	{
 		float noiseX = (position.x + offset.x) / maps[2].Scale;
 		float noiseY = (position.y + offset.y) / maps[2].Scale;
-		noiseHeight += MoistureMapOctaves[i].amplitude * ClassicNoise(float2(noiseX * MoistureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.y)) / 2 + 0.0875f;
+		noiseHeight += MoistureMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * MoistureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += MoistureMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
@@ -248,7 +248,6 @@ int GetBiome(float2 position)
 {
 	float temperature = CalculateTemperatureNoise(float2(position.x, position.y));
 	float moisture = CalculateMoistureNoise(float2(position.x, position.y));
-	//float moisture = 0;
 	for (int i = 0; i < BiomeLength; i++)
 	{
 		if (temperature <= Biomes[i].temperature)
@@ -293,7 +292,7 @@ float CalculateNoise(float2 position)
 	{
 		float noiseX = (position.x + offset.x) / maps[0].Scale;
 		float noiseY = (position.y + offset.y) / maps[0].Scale;
-		noiseHeight += HeightMapOctaves[i].amplitude * ClassicNoise(float2(noiseX * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.x, noiseY * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.y)) / 2 + 0.0875f;
+		noiseHeight += HeightMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.x, noiseY * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.y)) / 1.6 + 0.5f);
 		sumAmplitudes += HeightMapOctaves[i].amplitude;
 	}
 	height = noiseHeight / sumAmplitudes;
@@ -354,10 +353,10 @@ float4 BlendBiomes(float2 position, int curveIndex)
 	for (int i = 0; i < jitteredPointsLength; i++)
 	{
 		float Distance = distance(position, float2(jitteredPoints[i].x, jitteredPoints[i].y));
-		float centerWeight = distance(float2(Size / 2 / Resolution, Size / 2 / Resolution), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / maximumRadius;
+		//float centerWeight = distance(float2(Size / 2 / Resolution, Size / 2 / Resolution), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / maximumRadius;
 		if (Distance <= BiomeBlendRadius)
 		{
-			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise + 0.05;
+			float distanceWeight = (1 - (Distance / BiomeBlendRadius))  * noise + 0.05;
 			sumWeights += distanceWeight;
 			points++;
 			if (firstBlend)
@@ -386,7 +385,7 @@ float BlendHeights(float2 position, int curveIndex)
 		float dx = abs(jitteredPoints[i].x - position.x);
 		float dy = abs(jitteredPoints[i].y - position.y);
 		float Distance = distance(position, float2(jitteredPoints[i].x, jitteredPoints[i].y));
-		float centerWeight = distance(float2(0.5f, 0.5f), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / radius;
+		//float centerWeight = distance(float2(0.5f, 0.5f), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / radius;
 		float biomeWeight = pow(max(0, pow(radius, 2) - pow(dx, 2) - pow(dy, 2)), 2);
 		if (Distance <= BiomeBlendRadius)
 		{
@@ -405,13 +404,21 @@ float BlendHeights(float2 position, int curveIndex)
 	return height;
 }
 
+float4 temperatureMoistureMap(float2 position) 
+{
+	float moisture = CalculateMoistureNoise(position);
+	float temperature = CalculateTemperatureNoise(position);
+	return float4(temperature, moisture, 0, 0);
+
+}
+
 [numthreads(8, 8, 1)]
 void HeightMap(uint3 id : SV_DispatchThreadID)
 {
 	float x = id.x / Resolution;
 	float y = id.y / Resolution;
 	float noise = CalculateNoise(float2(x, y));
-	//noise = pow(noise, 2.5);
+	//float noise = ClassicNoise(float2(x + ChunkPosition.x + 1/Resolution, y + ChunkPosition.y + 1/Resolution)) / 1.8f + 0.5f;
 	int curveIndex = (int) (noise * CurveResolution);
 	if (BiomeHeights)
 	{
@@ -423,6 +430,7 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 	else
 	{
 		noise = HeightCurveTexture[int2(curveIndex, 0)];
+		//noise = pow(noise, 3);
 
 	}
 	HeightMapTexture[id.xy] = float4(noise, noise, noise, 0.0);
@@ -447,6 +455,8 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 		{
 			int biome = GetBiome(float2(x, y));
 			ColorMapTexture[id.xy] = BiomeGradientTexture[int2(curveIndex, biome)];
+			//ColorMapTexture[id.xy] = temperatureMoistureMap(float2(x, y));
+
 		}
 	}
 	else
