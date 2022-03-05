@@ -6,6 +6,7 @@ using System.Threading;
 
 public class WorldGenerator : MonoBehaviour
 {
+    // Public properties
     public GameObject chunkObject;
     public ComputeShader biomeShader;
     public ComputeShader terrainShader;
@@ -15,39 +16,36 @@ public class WorldGenerator : MonoBehaviour
     public MapSettings temperatureMapSettings;
     public MapSettings moistureMapSettings;
     public MapSettings biomeBlendMapSettings;
-    public MapSettings jitterMapSettings;
-
-    private float step;
     public int chunkResolution;
+    public MapSettings jitterMapSettings;
     public float chunkSize;
     public int chunkGenBatchSize;
-    private float scale;
     public float depth;
-    public float worldScale;
     private bool isGenerating = true;
-
-    //Test seed: -1207784884
+    public float worldScale;
     public int seed;
     public bool randomSeed;
     public bool drawBiomes;
     public bool useBiomeBlending;
     public bool useBiomeHeights;
-    private bool useJitteredPointDictionary;
     public bool flatMap;
     public bool drawJitteredPoints;
     public int GPUCurveResolution;
     public Biome[] biomes;
     public float biomeBlendRange;
     public float biomeBlendLevel;
-    private System.Random prng;
     public Texture2D heightCurveTexture;
     public Texture2D biomeGradientTexture;
     public Texture2D biomeCurveTexture;
-
-    Queue<MapThreadInfo> mapDataThreadInfoQueue = new Queue<MapThreadInfo>();
-    Queue<ChunkGenerator> chunkQueue = new Queue<ChunkGenerator>();
-
     public Dictionary<Vector2, Chunk> chunkDictionary = new Dictionary<Vector2, Chunk>();
+
+    // Private properties
+    private float _step;
+    private float _scale;
+    private bool _useJitteredPointDictionary;
+    private System.Random prng;
+    private Queue<MapThreadInfo> mapDataThreadInfoQueue = new Queue<MapThreadInfo>();
+    private Queue<ChunkGenerator> chunkQueue = new Queue<ChunkGenerator>();
 
     [Serializable]
     public class MapSettings
@@ -167,26 +165,33 @@ public class WorldGenerator : MonoBehaviour
 
     public void Awake()
     {
-        //CreateWorld();
+        // Clears all of the arrays and gets ready to make a new world.
         calculatedPointsPerChunk.Clear();
         calculatedBiomes.Clear();
         allPoints.Clear();
         Array.Sort(biomes, CompareTemperatures);
         DeleteWorld();
-        scale = chunkSize * 2 / (float)chunkResolution;
-        //print(adjustedNoiseScale);
-        step = chunkSize;
+        _scale = chunkSize * 2 / (float)chunkResolution;
+        _step = chunkSize;
+
+        // Generates a seeded random number generator.
         if (randomSeed)
         {
             seed = (int)(UnityEngine.Random.Range(int.MinValue, int.MaxValue));
         }
         prng = new System.Random(seed);
+
+        // Generate the octave arrays for all of the noise maps.
         heightMapSettings.GenerateOctaveArray(prng);
         temperatureMapSettings.GenerateOctaveArray(prng);
         moistureMapSettings.GenerateOctaveArray(prng);
         biomeBlendMapSettings.GenerateOctaveArray(prng);
         jitterMapSettings.GenerateOctaveArray(prng);
+
+        // Initializes the terrain shader.
         InitializeTerrainShader();
+
+        // Sets the depth in the chunk generator
         ChunkGenerator.depth = depth * worldScale;
         if (flatMap)
         {
@@ -198,6 +203,7 @@ public class WorldGenerator : MonoBehaviour
 
     public void Update()
     {
+        // Depricated.
         if (mapDataThreadInfoQueue.Count > 0)
         {
             for (int i = 0; i < mapDataThreadInfoQueue.Count; i++)
@@ -206,6 +212,8 @@ public class WorldGenerator : MonoBehaviour
                 threadInfo.callback(threadInfo.data);
             }
         }
+
+        // If there are any chunks in the chunk queue, this takes a specified amount of them and computes them
         if (isGenerating)
         {
             int i = 0;
@@ -216,6 +224,8 @@ public class WorldGenerator : MonoBehaviour
                 i++;
             }
         }
+
+        // Set the isGenerating flag so other objects can see if the world generator is running
         isGenerating = chunkQueue.Count > 0;
     }
 
@@ -224,6 +234,7 @@ public class WorldGenerator : MonoBehaviour
         return isGenerating;
     }
 
+    // Generates octaves for the noise maps based on the seeded random number generator and other properties
     public static Octave[] GenerateOctaves(int octaves, float persistance, float lacunarity, System.Random prng)
     {
         float frequency = 1;
@@ -239,6 +250,7 @@ public class WorldGenerator : MonoBehaviour
         return octaveArray;
     }
 
+    // Deletes the world
     void DeleteWorld()
     {
         ChunkGenerator[] allChunks = (ChunkGenerator[])GameObject.FindObjectsOfType(typeof(ChunkGenerator));
@@ -253,13 +265,13 @@ public class WorldGenerator : MonoBehaviour
     {
         ChunkGenerator newChunk = mapData.chunk.GetComponent<ChunkGenerator>();
         //newChunk.GenerateTerrain(mapData.heightMap, chunkResolution, chunkResolution, scale, depth, mapData.colorMap);
-        newChunk.InitializeTerrain(chunkResolution, chunkResolution, scale);
+        newChunk.InitializeTerrain(chunkResolution, chunkResolution, _scale);
     }
 
     public Chunk GPUGenerateChunk(int x, int y)
     {
-        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * step, 0, y * step), Quaternion.identity).GetComponent<ChunkGenerator>();
-        newChunk.InitializeTerrain(chunkResolution, chunkResolution, scale);
+        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * _step, 0, y * _step), Quaternion.identity).GetComponent<ChunkGenerator>();
+        newChunk.InitializeTerrain(chunkResolution, chunkResolution, _scale);
 
         newChunk.GetComponent<Chunk>().position = new Vector2(x, y);
         chunkQueue.Enqueue(newChunk);
@@ -395,8 +407,8 @@ public class WorldGenerator : MonoBehaviour
                 float sumAmplitudes = 0;
                 foreach (Octave octave in octaveArray)
                 {
-                    float noiseX = ((float)x + offset.x) / ((float)xSize * scale) - 0.5f;
-                    float noiseY = ((float)y + offset.y) / ((float)ySize * scale) - 0.5f;
+                    float noiseX = ((float)x + offset.x) / ((float)xSize * _scale) - 0.5f;
+                    float noiseY = ((float)y + offset.y) / ((float)ySize * _scale) - 0.5f;
                     noiseHeight += octave.amplitude * Mathf.PerlinNoise(noiseX * octave.frequency + octave.offset.x, noiseY * octave.frequency + octave.offset.y);
                     sumAmplitudes += octave.amplitude;
                 }
@@ -544,7 +556,7 @@ public class WorldGenerator : MonoBehaviour
         float pointArea = biomeBlendRange + 0.0f;
         bool[] quadrants = new bool[8];
         Dictionary<Vector2, Vector3> calculatedPointGrid;
-        if (useJitteredPointDictionary)
+        if (_useJitteredPointDictionary)
         {
             hasJitteredPoints = calculatedPointsPerChunk.ContainsKey(new Vector2(chunkX, chunkY));
             if (hasJitteredPoints)
@@ -570,7 +582,7 @@ public class WorldGenerator : MonoBehaviour
             {
                 float scaledX = (float)x / resolution;
                 float scaledY = (float)y / resolution;
-                if (useJitteredPointDictionary && hasJitteredPoints)
+                if (_useJitteredPointDictionary && hasJitteredPoints)
                 {
                     if(quadrants[0] && (scaledX <= pointArea && scaledY <= pointArea)) { continue; }
                     if(quadrants[1] && (scaledX > pointArea && scaledX < 1 - pointArea && scaledY <= pointArea)) { continue; }
@@ -612,7 +624,7 @@ public class WorldGenerator : MonoBehaviour
         }
         
 
-        if (useJitteredPointDictionary)
+        if (_useJitteredPointDictionary)
         {
             Vector3[] newJitteredPointArray = new Vector3[jitteredPointArray.Length];
             jitteredPointBuffer.GetData(newJitteredPointArray);
