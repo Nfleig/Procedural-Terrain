@@ -1,14 +1,17 @@
 Base path: 'C:/Program Files/Unity/Hub/Editor/2019.3.5f1/Editor/Data', plugins path 'C:/Program Files/Unity/Hub/Editor/2019.3.5f1/Editor/Data/PlaybackEngines'
 Cmd: initializeCompiler
 Cmd: compileComputeKernel
-  error: 1 plat 4 at TerrainShader.compute(87): loop only executes for 0 iteration(s), forcing loop to unroll
-  error: 1 plat 4 at TerrainShader.compute(97): loop only executes for 0 iteration(s), forcing loop to unroll
-  error: 1 plat 4 at TerrainShader.compute(120): implicit truncation of vector type
-  error: 1 plat 4 at TerrainShader.compute(161): implicit truncation of vector type
-  error: 1 plat 4 at TerrainShader.compute(202): implicit truncation of vector type
-  error: 1 plat 4 at TerrainShader.compute(210): loop only executes for 0 iteration(s), forcing loop to unroll
-  error: 1 plat 4 at TerrainShader.compute(220): loop only executes for 0 iteration(s), forcing loop to unroll
-  error: 1 plat 4 at TerrainShader.compute(243): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(81): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(91): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(114): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(155): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(196): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(204): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(214): loop only executes for 0 iteration(s), forcing loop to unroll
+  error: 1 plat 4 at TerrainShader.compute(237): implicit truncation of vector type
+  error: 1 plat 4 at TerrainShader.compute(420): implicit truncation of vector type
   error: 1 plat 4 at TerrainShader.compute(426): implicit truncation of vector type
-  error: 1 plat 4 at TerrainShader.compute(432): implicit truncation of vector type
-  api=4 insize=13539 outsize=16355 ok=1
+  api=4 insize=13455 outsize=16355 ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 4 at TerrainShader.compute(73): undeclared identifier 'Size'
+  api=4 insize=12954 outsize=0 ok=0

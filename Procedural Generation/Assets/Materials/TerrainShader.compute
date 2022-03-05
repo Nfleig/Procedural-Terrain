@@ -1,7 +1,6 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel HeightMap
 #pragma kernel JitterPoints
-#pragma kernel SetMapSettings
 
 #pragma exclude_renderers d3d11_9x
 #pragma exclude_renderers d3d9
@@ -11,12 +10,6 @@
 #include "Packages/jp.keijiro.noiseshader/Shader/ClassicNoise2D.hlsl"
 
 RWTexture2D<float4> Result;
-
-struct ChunkMap
-{
-	RWTexture2D<float4> MapTexture;
-	float2 ChunkPosition;
-};
 
 struct Biome
 {
@@ -44,44 +37,52 @@ struct Output
 	float averageElevation;
 };
 
-RWStructuredBuffer<float3> jitteredPoints;
-RWStructuredBuffer<Output> OutputBuffer;
-int jitteredPointsLength;
-StructuredBuffer<Biome> Biomes;
-StructuredBuffer<GPUMapSettings> maps;
-int BiomeLength;
+// Constants
 bool DrawBiomes;
 bool BiomeBlending;
 bool BiomeHeights;
-
 float BiomeBlendRadius;
+float Resolution;
+float CurveResolution;
+float Size;
+int BiomeLength;
+int jitteredPointsLength;
 
+// Parameters
+float2 ChunkPosition;
+
+// Buffers
+StructuredBuffer<Biome> Biomes;
+StructuredBuffer<GPUMapSettings> maps;
+StructuredBuffer<Octave> HeightMapOctaves;
+StructuredBuffer<Octave> TemperatureMapOctaves;
+StructuredBuffer<Octave> MoistureMapOctaves;
+StructuredBuffer<Octave> BiomeBlendMapOctaves;
+StructuredBuffer<Octave> JitterMapOctaves;
+RWStructuredBuffer<float3> jitteredPoints;
+RWStructuredBuffer<Output> OutputBuffer;
+
+// Textures
 RWTexture2D<float4> HeightMapTexture;
 RWTexture2D<float4> ColorMapTexture;
 Texture2D<float4> HeightCurveTexture;
 Texture2D<float4> BiomeGradientTexture;
 Texture2D<float4> BiomeCurveTexture;
 
+/*
+ * NOTE: Compute shaders are extremely difficult to work with. I tried numerous different ways to
+ * have a general noise generator that could be used with any noisemap but it seems that the only way for now
+ * is to have a seperate noise function for every map. I hate it so much, but it has to be done. 
+ */
 
-StructuredBuffer<Octave> HeightMapOctaves;
-StructuredBuffer<Octave> TemperatureMapOctaves;
-StructuredBuffer<Octave> MoistureMapOctaves;
-StructuredBuffer<Octave> BiomeBlendMapOctaves;
-StructuredBuffer<Octave> JitterMapOctaves;
-
-float Resolution;
-float CurveResolution;
-
-int MapID;
-float2 Offset;
-float Scale;
-float Size;
-float2 ChunkPosition;
-StructuredBuffer<Octave> Octaves;
-int OctaveCount;
-
+/*
+ * This function calculates noise for the temperature map
+ */
 float CalculateTemperatureNoise(float2 position)
 {
+	// If the point is outside of the chunk shift, shift it so that it is
+	// inside the adjacent chunk to avoid floating point inaccuracies
+
 	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
@@ -104,18 +105,35 @@ float CalculateTemperatureNoise(float2 position)
 		chunkPosition.y += 1;
 		position.y -= mapSize;
 	}
+
+	// Calculate the offset based off of the chunk position
+
 	float2 offset = maps[1].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
 	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
+	
+	// Take the average of the noise from all of the octaves
+
 	for (int i = 0; i < maps[1].OctaveCount; i++)
 	{
+		// Calculate the position in the noise from the offset and scale
+
 		float noiseX = (position.x + offset.x) / maps[1].Scale;
 		float noiseY = (position.y + offset.y) / maps[1].Scale;
+
+		// Calculate the noise
+
 		noiseHeight += TemperatureMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * TemperatureMapOctaves[i].frequency + TemperatureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + TemperatureMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += TemperatureMapOctaves[i].amplitude;
 	}
+
+	// Divide the sum of all of the noise by the sum of the amplitudes
+
 	height = noiseHeight / sumAmplitudes;
+	
+	// Calculate the pixel coordinate on the height curve texture and use that to get the final noise value
+
 	int curveIndex = (int) (height * CurveResolution);
 	height = HeightCurveTexture[int2(curveIndex, 1)];
 	return height;
@@ -123,6 +141,9 @@ float CalculateTemperatureNoise(float2 position)
 
 float CalculateJitterNoise(float2 position)
 {
+	// If the point is outside of the chunk shift, shift it so that it is
+	// inside the adjacent chunk to avoid floating point inaccuracies
+
 	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
@@ -145,18 +166,35 @@ float CalculateJitterNoise(float2 position)
 		chunkPosition.y += 1;
 		position.y -= mapSize;
 	}
+
+	// Calculate the offset based off of the chunk position
+
 	float2 offset = chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
 	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
+	
+	// Take the average of the noise from all of the octaves
+
 	for (int i = 0; i < 4; i++)
 	{
+		// Calculate the position in the noise from the offset and scale
+		
 		float noiseX = (position.x + offset.x) / 0.001;
 		float noiseY = (position.y + offset.y) / 0.001;
+
+		// Calculate the noise
+
 		noiseHeight += JitterMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.x, noiseY * JitterMapOctaves[i].frequency + JitterMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += JitterMapOctaves[i].amplitude;
 	}
+	
+	// Divide the sum of all of the noise by the sum of the amplitudes
+
 	height = noiseHeight / sumAmplitudes;
+	
+	// Calculate the pixel coordinate on the height curve texture and use that to get the final noise value
+
 	int curveIndex = (int) (height * CurveResolution);
 	height = HeightCurveTexture[int2(curveIndex, 4)];
 	return height;
@@ -164,6 +202,9 @@ float CalculateJitterNoise(float2 position)
 
 float CalculateBiomeBlendNoise(float2 position)
 {
+	// If the point is outside of the chunk shift, shift it so that it is
+	// inside the adjacent chunk to avoid floating point inaccuracies
+
 	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
@@ -186,18 +227,35 @@ float CalculateBiomeBlendNoise(float2 position)
 		chunkPosition.y += 1;
 		position.y -= mapSize;
 	}
+
+	// Calculate the offset based off of the chunk position
+
 	float2 offset = maps[3].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
 	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
+	
+	// Take the average of the noise from all of the octaves
+
 	for (int i = 0; i < maps[3].OctaveCount; i++)
 	{
+		// Calculate the position in the noise from the offset and scale
+		
 		float noiseX = (position.x + offset.x) / maps[3].Scale;
 		float noiseY = (position.y + offset.y) / maps[3].Scale;
+
+		// Calculate the noise
+
 		noiseHeight += BiomeBlendMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * BiomeBlendMapOctaves[i].frequency + BiomeBlendMapOctaves[i].offset.x, noiseY * BiomeBlendMapOctaves[i].frequency + BiomeBlendMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += BiomeBlendMapOctaves[i].amplitude;
 	}
+	
+	// Divide the sum of all of the noise by the sum of the amplitudes
+
 	height = noiseHeight / sumAmplitudes;
+	
+	// Calculate the pixel coordinate on the height curve texture and use that to get the final noise value
+
 	int curveIndex = (int) (height * CurveResolution);
 	height = HeightCurveTexture[int2(curveIndex, 3)];
 	return height;
@@ -205,6 +263,9 @@ float CalculateBiomeBlendNoise(float2 position)
 
 float CalculateMoistureNoise(float2 position)
 {
+	// If the point is outside of the chunk shift, shift it so that it is
+	// inside the adjacent chunk to avoid floating point inaccuracies
+
 	float mapSize = Size / Resolution;
 	float2 chunkPosition = ChunkPosition;
 	while (position.x < 0)
@@ -227,27 +288,112 @@ float CalculateMoistureNoise(float2 position)
 		chunkPosition.y += 1;
 		position.y -= mapSize;
 	}
+
+	// Calculate the offset based off of the chunk position
+
 	float2 offset = maps[0].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
 	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
+	
+	// Take the average of the noise from all of the octaves
+
 	for (int i = 0; i < maps[2].OctaveCount; i++)
 	{
+		// Calculate the position in the noise from the offset and scale
+		
 		float noiseX = (position.x + offset.x) / maps[2].Scale;
 		float noiseY = (position.y + offset.y) / maps[2].Scale;
+
+		// Calculate the noise
+
 		noiseHeight += MoistureMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * MoistureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += MoistureMapOctaves[i].amplitude;
 	}
+	
+	// Divide the sum of all of the noise by the sum of the amplitudes
+
 	height = noiseHeight / sumAmplitudes;
+	
+	// Calculate the pixel coordinate on the height curve texture and use that to get the final noise value
+
 	int curveIndex = (int) (height * CurveResolution);
 	height = HeightCurveTexture[int2(curveIndex, 2)];
 	return height;
 }
 
+float CalculateNoise(float2 position)
+{
+	// If the point is outside of the chunk shift, shift it so that it is
+	// inside the adjacent chunk to avoid floating point inaccuracies
+
+	float mapSize = Size / Resolution;
+	float2 chunkPosition = ChunkPosition;
+	while (position.x < 0)
+	{
+		chunkPosition.x -= 1;
+		position.x += mapSize;
+	}
+	while (position.x > mapSize)
+	{
+		chunkPosition.x += 1;
+		position.x -= mapSize;
+	}
+	while (position.y < 0)
+	{
+		chunkPosition.y -= 1;
+		position.y += mapSize;
+	}
+	while (position.y > mapSize)
+	{
+		chunkPosition.y += 1;
+		position.y -= mapSize;
+	}
+
+	// Calculate the offset based off of the chunk position
+
+	float2 offset = maps[0].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
+	float height;
+	float noiseHeight = 0;
+	float sumAmplitudes = 0;
+	
+	// Take the average of the noise from all of the octaves
+
+	for (int i = 0; i < maps[0].OctaveCount; i++)
+	{
+		// Calculate the position in the noise from the offset and scale
+		
+		float noiseX = (position.x + offset.x) / maps[0].Scale;
+		float noiseY = (position.y + offset.y) / maps[0].Scale;
+
+		// Calculate the noise
+
+		noiseHeight += HeightMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.x, noiseY * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.y)) / 1.6 + 0.5f);
+		sumAmplitudes += HeightMapOctaves[i].amplitude;
+	}
+	
+	// Divide the sum of all of the noise by the sum of the amplitudes
+
+	height = noiseHeight / sumAmplitudes;
+
+	// This noise will either be curved or blended later
+
+	return height;
+}
+
+/*
+ * This function gets the biome at a given position using the temperature
+ * and moisture noise
+ */
+
 int GetBiome(float2 position)
 {
-	float temperature = CalculateTemperatureNoise(float2(position.x, position.y));
-	float moisture = CalculateMoistureNoise(float2(position.x, position.y));
+	// Calculate the noise values
+	float temperature = CalculateTemperatureNoise(position);
+	float moisture = CalculateMoistureNoise(position);
+
+	// Go through the biome list and see which biome best matches the noise values
+
 	for (int i = 0; i < BiomeLength; i++)
 	{
 		if (temperature <= Biomes[i].temperature)
@@ -260,107 +406,85 @@ int GetBiome(float2 position)
 	}
 	return 0;
 }
-float CalculateNoise(float2 position)
-{
-	float mapSize = Size / Resolution;
-	float2 chunkPosition = ChunkPosition;
-	while (position.x < 0)
-	{
-		chunkPosition.x -= 1;
-		position.x += mapSize;
-	}
-	while (position.x > mapSize)
-	{
-		chunkPosition.x += 1;
-		position.x -= mapSize;
-	}
-	while (position.y < 0)
-	{
-		chunkPosition.y -= 1;
-		position.y += mapSize;
-	}
-	while (position.y > mapSize)
-	{
-		chunkPosition.y += 1;
-		position.y -= mapSize;
-	}
-	float2 offset = maps[0].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
-	float height;
-	float noiseHeight = 0;
-	float sumAmplitudes = 0;
-	for (int i = 0; i < maps[0].OctaveCount; i++)
-	{
-		float noiseX = (position.x + offset.x) / maps[0].Scale;
-		float noiseY = (position.y + offset.y) / maps[0].Scale;
-		noiseHeight += HeightMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.x, noiseY * HeightMapOctaves[i].frequency + HeightMapOctaves[i].offset.y)) / 1.6 + 0.5f);
-		sumAmplitudes += HeightMapOctaves[i].amplitude;
-	}
-	height = noiseHeight / sumAmplitudes;
-	return height;
-}
 
-[numthreads(1, 1, 1)]
-void SetMapSettings(uint3 id : SV_DispatchThreadID) 
-{
-	if (MapID == 0) //Height Map
-	{
-		HeightMapOctaves = Octaves;
-	} else if (MapID == 1) //Temperature Map
-	{
-		TemperatureMapOctaves = Octaves;
-	} else if (MapID == 2) //Moisture Map
-	{
-		MoistureMapOctaves = Octaves;
-	}else if (MapID == 3) //Jitter Map
-	{
-		
-	}
-
-}
+/*
+ * This function takes the buffer of points passed in by JitterPoints() in the world generator
+ * and actually jitters them
+ */
 
 [numthreads(10, 1, 1)]
 void JitterPoints(uint3 id : SV_DispatchThreadID)
 {
+	// Read in the point
+
 	float3 oldPoint = jitteredPoints[id.x];
+
+	// If the point's z value is an integer then that means that the point has already been jittered
 	if (oldPoint.z % 1 != 0)
 	{
+		// Normalize the point coordinates
 		float x = oldPoint.x / Resolution;
 		float y = oldPoint.y / Resolution;
+
+		// Generate a random direction for the point
+		// NOTE: this direction must be generated from noise, otherwise the jittered
+		// 		 points will not line up between chunks and there will be seams
+
 		float dir = CalculateJitterNoise(float2(x, y)) * 2 * 3.14159;
-	
+
 		float dist = 1 / Resolution;
+
+		// Shift the point 1 unit in the random direction
 		float3 newPoint = float3(x + (cos(dir) * dist), y + (sin(dir) * dist), 0.0);
+
+		// The point's z will store the biome of the point
 		newPoint.z = (float) GetBiome(float2(newPoint.x, newPoint.y));
 	
+		// See if all of the jittered points have the same biome
+		// if they do, then we do not have to do any biome blending
+
 		if (OutputBuffer[0].chunkBiome == -2)
 			OutputBuffer[0].chunkBiome = GetBiome(float2(0, 0));
 		if (newPoint.z != OutputBuffer[0].chunkBiome)
 			OutputBuffer[0].chunkBiome = -1;
 	
+		// Put the jittered point back into the buffer
+
 		jitteredPoints[id.x] = newPoint;
 	}
 }
+
+/*
+ * This function will generate a color which is the result of biome blending at that position.
+ * For more information on biome blending, see this paper: https://noiseposti.ng/posts/2021-03-13-Fast-Biome-Blending-Without-Squareness.html
+ */
 
 float4 BlendBiomes(float2 position, int curveIndex)
 {
 	float4 color = float4(0, 0, 0, 0);
 	bool firstBlend = false;
+
+	// Noise is applied to the biome blending to make it more interesting
+
 	float noise = CalculateBiomeBlendNoise(position);
 	float radius = sqrt(2) / 2;
 	float maximumRadius = radius * sqrt(2) + (1 / Resolution);
-	float sumWeights = 0;
-	int points = 0;
+
+	// Iterate through all of the jittered points and see which ones are close to our position
+
 	for (int i = 0; i < jitteredPointsLength; i++)
 	{
 		float Distance = distance(position, float2(jitteredPoints[i].x, jitteredPoints[i].y));
-		//float centerWeight = distance(float2(Size / 2 / Resolution, Size / 2 / Resolution), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / maximumRadius;
 		if (Distance <= BiomeBlendRadius)
 		{
+			// If a jittered point is close enough to influence our position, then it blends it's color
+			// with the current color using a weight value that increases as the jittered point gets closer to the position
+
 			float distanceWeight = (1 - (Distance / BiomeBlendRadius))  * noise + 0.05;
-			sumWeights += distanceWeight;
-			points++;
 			if (firstBlend)
 			{
+				// If this is the first blend, then we just take the jittered point's color
+
 				color = BiomeGradientTexture[int2(curveIndex, jitteredPoints[i].z)];
 				firstBlend = false;
 			}
@@ -370,28 +494,38 @@ float4 BlendBiomes(float2 position, int curveIndex)
 			}
 		}
 	}
-	//return float4((sumWeights / points) * 4, (sumWeights / points) * 4, (sumWeights / points) * 4, 0);
 	return color;
 }
+
+/*
+ * This function will generate a height that is a result of biome blending at that position
+ * For more information on biome blending, see this paper: https://noiseposti.ng/posts/2021-03-13-Fast-Biome-Blending-Without-Squareness.html
+ */
 
 float BlendHeights(float2 position, int curveIndex)
 {
 	float height = 0;
 	bool firstBlend = true;
+
+	// Noise is applied to the biome blending to make it more interesting
+
 	float noise = CalculateBiomeBlendNoise(position);
-	float radius = sqrt(2) / 2 + 1 / Resolution;
+	float radius = sqrt(2) / 2;
+
+	// Iterate through all of the jittered points and see which ones are close to our position
+
 	for (int i = 0; i < jitteredPointsLength; i++)
 	{
-		float dx = abs(jitteredPoints[i].x - position.x);
-		float dy = abs(jitteredPoints[i].y - position.y);
 		float Distance = distance(position, float2(jitteredPoints[i].x, jitteredPoints[i].y));
-		//float centerWeight = distance(float2(0.5f, 0.5f), float2(jitteredPoints[i].x, jitteredPoints[i].y)) / radius;
-		float biomeWeight = pow(max(0, pow(radius, 2) - pow(dx, 2) - pow(dy, 2)), 2);
 		if (Distance <= BiomeBlendRadius)
 		{
+			// If the jittered point is close enough to influence our position, then we average
+			// it's height with our current height
+
 			float distanceWeight = (1 - (Distance / BiomeBlendRadius)) * noise + 0.05;
 			if (firstBlend)
 			{
+				// If this is the first blend, then we just take the jittered point's height
 				height = BiomeCurveTexture[int2(curveIndex, jitteredPoints[i].z)].r;
 				firstBlend = false;
 			}
@@ -404,24 +538,42 @@ float BlendHeights(float2 position, int curveIndex)
 	return height;
 }
 
+/*
+ * This function helps debug by visualizing the temperature and moisture maps
+ */
 float4 temperatureMoistureMap(float2 position) 
 {
 	float moisture = CalculateMoistureNoise(position);
 	float temperature = CalculateTemperatureNoise(position);
 	return float4(temperature, moisture, 0, 0);
-
 }
+
+/*
+ * This is the main function that the terrain shader runs to generate the height
+ * and color map of the chunk
+ */
 
 [numthreads(8, 8, 1)]
 void HeightMap(uint3 id : SV_DispatchThreadID)
 {
+	// Normalize the position with the resolution
+
 	float x = id.x / Resolution;
 	float y = id.y / Resolution;
+
+	// Calculate the noise at this point
+
 	float noise = CalculateNoise(float2(x, y));
-	//float noise = ClassicNoise(float2(x + ChunkPosition.x + 1/Resolution, y + ChunkPosition.y + 1/Resolution)) / 1.8f + 0.5f;
+
+	// Get the pixel coordinate of the noise on the curve textures
+
 	int curveIndex = (int) (noise * CurveResolution);
+
 	if (BiomeHeights)
 	{
+		// If biome specific height curves are enabled, use the biome blending
+		// function to get the new noise, but only if there are multiple biomes in the chunk
+
 		if (OutputBuffer[0].chunkBiome != -1)
 			noise = BiomeCurveTexture[int2(curveIndex, OutputBuffer[0].chunkBiome)];
 		else
@@ -429,38 +581,47 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 	}
 	else
 	{
+		// If biome heights are not enabled, then just use a default curve
 		noise = HeightCurveTexture[int2(curveIndex, 0)];
-		//noise = pow(noise, 3);
 
 	}
+
+	// Set the pixels of the heightmap texture
 	HeightMapTexture[id.xy] = float4(noise, noise, noise, 0.0);
+
+	// Get the pixel coordinate of the new noise on the gradient textures
+
 	curveIndex = (int) (noise * CurveResolution);
 	if (DrawBiomes)
 	{
 		if (BiomeBlending)
 		{
-			//ColorMapTexture[id.xy] = float4(jitteredPoints[0].z, 0.0, 0.0, 0.0);
+			// If biome blending is enabled, then use the biome blending function
+			// to get the color at the current position and set the pixel of the texture,
+			// but only if there are multiple biomes in the chunk
+
 			if (OutputBuffer[0].chunkBiome != -1)
 			{
-				//ColorMapTexture[id.xy] = float4(0, 1, 0, 0.0);
 				ColorMapTexture[id.xy] = BiomeGradientTexture[int2(curveIndex, OutputBuffer[0].chunkBiome)];
 			}
 			else
 			{
-				//ColorMapTexture[id.xy] = float4(OutputBuffer[0].chunkBiome + 1, 0.0, 0.0, 0.0);
 				ColorMapTexture[id.xy] = BlendBiomes(float2(x, y), curveIndex);
 			}
 		}
 		else
 		{
+			// If biome blending is not enabled, then get the biome at each pixel and set
+			// the pixel of the texture to that
+
 			int biome = GetBiome(float2(x, y));
 			ColorMapTexture[id.xy] = BiomeGradientTexture[int2(curveIndex, biome)];
-			//ColorMapTexture[id.xy] = temperatureMoistureMap(float2(x, y));
-
 		}
 	}
 	else
 	{
+		// If drawing biomes is not enabled, then just use the gradient of a default biome
+
 		ColorMapTexture[id.xy] = BiomeGradientTexture[int2(curveIndex, 2)];
 	}
 }
