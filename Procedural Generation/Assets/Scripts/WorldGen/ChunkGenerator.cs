@@ -57,9 +57,8 @@ public class ChunkGenerator : MonoBehaviour
 
     int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1 };
     int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
-    public void DeformMesh()
+    public async void DeformMesh()
     {
-
         Texture2D texture = new Texture2D(heightMapTexture.width, heightMapTexture.height, TextureFormat.RGB24, false);
         RenderTexture.active = heightMapTexture;
         texture.ReadPixels(new Rect(0, 0, heightMapTexture.width, heightMapTexture.height), 0, 0);

@@ -16,8 +16,8 @@ public class WorldGenerator : MonoBehaviour
     public MapSettings temperatureMapSettings;
     public MapSettings moistureMapSettings;
     public MapSettings biomeBlendMapSettings;
-    public int chunkResolution;
     public MapSettings jitterMapSettings;
+    public int chunkResolution;
     public float chunkSize;
     public int chunkGenBatchSize;
     public float depth;
@@ -320,8 +320,10 @@ public class WorldGenerator : MonoBehaviour
         JitterPoints(x, y);
 
         // Dispatches the shader
+        int threadGroupsX = Mathf.CeilToInt(chunk.heightMapTexture.width / 32.0f);
+        int threadGroupsY = Mathf.CeilToInt(chunk.heightMapTexture.height / 32.0f);
 
-        terrainShader.Dispatch(heightMapKernel, chunk.heightMapTexture.width / 5, chunk.heightMapTexture.width / 5, 1);
+        terrainShader.Dispatch(heightMapKernel, threadGroupsX, threadGroupsY, 1);
 
         // Reads the output from the shader once it's finished and uses that to get data about the chunk's terrain
 

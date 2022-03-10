@@ -291,7 +291,7 @@ float CalculateMoistureNoise(float2 position)
 
 	// Calculate the offset based off of the chunk position
 
-	float2 offset = maps[0].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
+	float2 offset = maps[2].Offset + chunkPosition - float2(2 * chunkPosition.x / Resolution, 2 * chunkPosition.y / Resolution);
 	float height;
 	float noiseHeight = 0;
 	float sumAmplitudes = 0;
@@ -307,7 +307,7 @@ float CalculateMoistureNoise(float2 position)
 
 		// Calculate the noise
 
-		noiseHeight += MoistureMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * MoistureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.x, noiseY * TemperatureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.y)) / 1.5 + 0.5f);
+		noiseHeight += MoistureMapOctaves[i].amplitude * (ClassicNoise(float2(noiseX * MoistureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.x, noiseY * MoistureMapOctaves[i].frequency + MoistureMapOctaves[i].offset.y)) / 1.5 + 0.5f);
 		sumAmplitudes += MoistureMapOctaves[i].amplitude;
 	}
 	
@@ -468,7 +468,6 @@ float4 BlendBiomes(float2 position, int curveIndex)
 
 	float noise = CalculateBiomeBlendNoise(position);
 	float radius = sqrt(2) / 2;
-	float maximumRadius = radius * sqrt(2) + (1 / Resolution);
 
 	// Iterate through all of the jittered points and see which ones are close to our position
 
@@ -553,7 +552,7 @@ float4 temperatureMoistureMap(float2 position)
  * and color map of the chunk
  */
 
-[numthreads(8, 8, 1)]
+[numthreads(32, 32, 1)]
 void HeightMap(uint3 id : SV_DispatchThreadID)
 {
 	// Normalize the position with the resolution
