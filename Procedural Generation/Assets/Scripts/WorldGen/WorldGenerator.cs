@@ -34,9 +34,7 @@ public class WorldGenerator : MonoBehaviour
     public Biome[] biomes;
     public float biomeBlendRange;
     public float biomeBlendLevel;
-    public Texture2D heightCurveTexture;
-    public Texture2D biomeGradientTexture;
-    public Texture2D biomeCurveTexture;
+    
     public Dictionary<Vector2, Chunk> chunkDictionary = new Dictionary<Vector2, Chunk>();
 
     // Private properties
@@ -56,6 +54,9 @@ public class WorldGenerator : MonoBehaviour
     private ComputeBuffer mapBuffer;
     private ComputeBuffer jitteredPointBuffer;
     private ComputeBuffer outputBuffer;
+    private Texture2D heightCurveTexture;
+    private Texture2D biomeGradientTexture;
+    private Texture2D biomeCurveTexture;
 
     /*
      * This class stores all of the settings needed for a noise map. It is serializable so that it can be seen in the editor
@@ -279,6 +280,7 @@ public class WorldGenerator : MonoBehaviour
             DestroyImmediate(chunk.gameObject);
         }
         chunkQueue.Clear();
+        chunkDictionary.Clear();
     }
 
     /*
@@ -287,13 +289,21 @@ public class WorldGenerator : MonoBehaviour
     public Chunk GPUGenerateChunk(int x, int y)
     {
         // Initializes the chunk object
+
         ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * _step, 0, y * _step), Quaternion.identity).GetComponent<ChunkGenerator>();
+        Chunk newChunkObject = newChunk.GetComponent<Chunk>();
         newChunk.InitializeTerrain(chunkResolution, chunkResolution, _scale);
         newChunk.GetComponent<Chunk>().position = new Vector2(x, y);
 
+        // Queues the chunk to get generated later
+
         chunkQueue.Enqueue(newChunk);
 
-        return newChunk.GetComponent<Chunk>();
+        // Adds the chunk to the chunk dictionary
+
+        chunkDictionary.Add(new Vector2(x, y), newChunkObject);
+
+        return newChunkObject;
     }
 
     /*
@@ -310,6 +320,7 @@ public class WorldGenerator : MonoBehaviour
         // Prepares the terrain shader to generate the chunk
         // This is done by setting the output textures for the shader to textures in the chunk object and
         // setting the chunk position in the shader
+
         int heightMapKernel = terrainShader.FindKernel("HeightMap");
         terrainShader.SetTexture(heightMapKernel, "HeightMapTexture", chunk.heightMapTexture);
         terrainShader.SetTexture(heightMapKernel, "ColorMapTexture", chunk.colorMapTexture);
@@ -320,6 +331,7 @@ public class WorldGenerator : MonoBehaviour
         JitterPoints(x, y);
 
         // Dispatches the shader
+
         int threadGroupsX = Mathf.CeilToInt(chunk.heightMapTexture.width / 32.0f);
         int threadGroupsY = Mathf.CeilToInt(chunk.heightMapTexture.height / 32.0f);
 
@@ -549,7 +561,7 @@ public class WorldGenerator : MonoBehaviour
 
     void JitterPoints(int chunkX, int chunkY)
     {
-        List<Vector3> jitteredPoints = new List<Vector3>();
+        var jitteredPoints = new List<Vector3>();
         float size = (float)chunkResolution / (float)(chunkResolution + 2);     // The normalized size of the chunk
         bool hasJitteredPoints = false;
         float chunkRadius = (chunkResolution / 2) * Mathf.Sqrt(2);              // The radius of a circle that touches the corner of the chunk
@@ -618,13 +630,13 @@ public class WorldGenerator : MonoBehaviour
 
         // Create a jittered point buffer and pass it into the shader
 
-        Vector3[] jitteredPointArray = jitteredPoints.ToArray();
+        var jitteredPointArray = jitteredPoints.ToArray();
         jitteredPointBuffer = new ComputeBuffer(jitteredPointArray.Length, sizeof(float) * 3);
         jitteredPointBuffer.SetData(jitteredPointArray);
         terrainShader.SetBuffer(terrainShader.FindKernel("JitterPoints"), "jitteredPoints", jitteredPointBuffer);
 
         // Create an output buffer and pass it intot the shader
-        Output[] outputArray = new Output[1];
+        var outputArray = new Output[1];
         outputArray[0] = new Output(-2, 0);
         outputBuffer.SetData(outputArray);
         terrainShader.SetBuffer(terrainShader.FindKernel("JitterPoints"), "OutputBuffer", outputBuffer);
@@ -643,7 +655,7 @@ public class WorldGenerator : MonoBehaviour
 
         // Get the points from the jittered point buffer and add them to the list for the Gizmo tool to use
 
-        Vector3[] nJitteredPointArray = new Vector3[jitteredPointArray.Length];
+        var nJitteredPointArray = new Vector3[jitteredPointArray.Length];
         jitteredPointBuffer.GetData(nJitteredPointArray);
         biomeData = new float[biomes.Length];
         foreach (Vector3 point in nJitteredPointArray)
@@ -660,7 +672,7 @@ public class WorldGenerator : MonoBehaviour
         if (_useJitteredPointDictionary)
         {
             // Get the points from the jittered point buffer into a new array
-            Vector3[] newJitteredPointArray = new Vector3[jitteredPointArray.Length];
+            var newJitteredPointArray = new Vector3[jitteredPointArray.Length];
             jitteredPointBuffer.GetData(newJitteredPointArray);
 
             Vector2 chunkPosition = new Vector2(chunkX, chunkY);
@@ -713,7 +725,7 @@ public class WorldGenerator : MonoBehaviour
                         {
                             // Otherwise make the entry here and add the point
 
-                            Dictionary<Vector2, Vector3> calculatedPoints = new Dictionary<Vector2, Vector3>();
+                            var calculatedPoints = new Dictionary<Vector2, Vector3>();
                             Vector2 oldPoint = new Vector2(jitteredPointArray[i].x - (size * cosValues[dir]), jitteredPointArray[i].y - (size * sinValues[dir]));
                             calculatedPoints.Add(oldPoint, newPoint);
                             calculatedPointsPerChunk.Add(newChunkPosition, calculatedPoints);

@@ -70,7 +70,7 @@ Texture2D<float4> BiomeGradientTexture;
 Texture2D<float4> BiomeCurveTexture;
 
 /*
- * NOTE: Compute shaders are extremely difficult to work with. I tried numerous different ways to
+ * NOTE: Compute shaders are extremely annoying to work with. I tried numerous different ways to
  * have a general noise generator that could be used with any noisemap but it seems that the only way for now
  * is to have a seperate noise function for every map. I hate it so much, but it has to be done. 
  */
@@ -322,7 +322,7 @@ float CalculateMoistureNoise(float2 position)
 	return height;
 }
 
-float CalculateNoise(float2 position)
+float CalculateHeightNoise(float2 position)
 {
 	// If the point is outside of the chunk shift, shift it so that it is
 	// inside the adjacent chunk to avoid floating point inaccuracies
@@ -562,7 +562,7 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 
 	// Calculate the noise at this point
 
-	float noise = CalculateNoise(float2(x, y));
+	float noise = CalculateHeightNoise(float2(x, y));
 
 	// Get the pixel coordinate of the noise on the curve textures
 

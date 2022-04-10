@@ -5,126 +5,194 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter))]
 public class ChunkGenerator : MonoBehaviour
 {
-    Mesh mesh;
 
-    Vector3[] vertices;
-    Vector2[] uvs;
-    Color[] colors;
-    int[] triangles;
-    public RenderTexture heightMapTexture;
-    public RenderTexture colorMapTexture;
-    MeshRenderer meshRenderer;
+    // Public properties
     public Shader terrainShader;
     public static float depth;
-    private static WorldGenerator worldGen;
-    private Chunk chunk;
-    int xSize;
-    int ySize;
-    float scale;
-
+    public RenderTexture heightMapTexture;
+    public RenderTexture colorMapTexture;
     public float averageElevation;
     public float[] biomeData;
     public int biome;
 
+    // Private properties
+    private Mesh _mesh;
+    private Vector3[] _vertices;
+    private Vector2[] _uvs;
+    private int[] _triangles;
+    private MeshRenderer _meshRenderer;
+    private static WorldGenerator _worldGenerator;
+    private Chunk _chunk;
+    private int _xSize;
+    private int _ySize;
+    private float _scale;
+
+    /*
+     * This function finds the world generator object and the chunk generator's cooresponding chunk object
+     */
 
     private void Awake()
     {
-        worldGen = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
-        chunk = GetComponent<Chunk>();
+        _worldGenerator = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
+        _chunk = GetComponent<Chunk>();
     }
+
+    /*
+     * This function prepares the chunk to have it's height and color maps written to by the
+     * terrain shader. It also sets the vertex resolution and scale of the chunk
+     */
 
     public void InitializeTerrain(int xSize, int ySize, float scale)
     {
-        this.xSize = xSize;
-        this.ySize = xSize;
-        this.scale = scale;
+
+        // Set the size values for the chunk generator
+
+        this._xSize = xSize;
+        this._ySize = xSize;
+        this._scale = scale;
+
+        // Create the height map texture
 
         heightMapTexture = new RenderTexture(xSize + 1, ySize + 1, 1);
         heightMapTexture.enableRandomWrite = true;
         heightMapTexture.Create();
 
+        // Create the color map texture
+
         colorMapTexture = new RenderTexture(xSize + 1, ySize + 1, 1);
         colorMapTexture.enableRandomWrite = true;
         colorMapTexture.Create();
-
-        //updateMesh();
     }
 
-    public void GenerateTerrain(Texture2D heightMap)
-    {
-        GetComponent<MeshRenderer>().sharedMaterial.SetTexture("HeightMap", heightMap);
-    }
+    /*
+     * This function will use the height map texture to generate a new mesh for the chunk.
+     * It will also draw the color texture onto the mesh.
+     *
+     * For more information, see this Unity chunk generation tutorial: https://www.youtube.com/watch?v=eJEpeUH1EMg
+     */
 
-    int[] cosValues = { 1, 0, -1, 0, 1, -1, -1, 1 };
-    int[] sinValues = { 0, 1, 0, -1, 1, 1, -1, -1 };
-    public async void DeformMesh()
+    public void DeformMesh()
     {
+
+        // Read the height map texture into a texture2D object
+
         Texture2D texture = new Texture2D(heightMapTexture.width, heightMapTexture.height, TextureFormat.RGB24, false);
         RenderTexture.active = heightMapTexture;
         texture.ReadPixels(new Rect(0, 0, heightMapTexture.width, heightMapTexture.height), 0, 0);
-        mesh = new Mesh();
-        GetComponent<MeshFilter>().mesh = mesh;
-        vertices = new Vector3[(xSize + 1) * (ySize + 1)];
+
+        // Create a new mesh and set the mesh filter's mesh
+
+        _mesh = new Mesh();
+        GetComponent<MeshFilter>().mesh = _mesh;
+
+        // Initialize the vertex array
+
+        _vertices = new Vector3[(_xSize + 1) * (_ySize + 1)];
+
+        // Initialize the triangle array
+
+        _triangles = new int[_xSize * _ySize * 6];
+
+        // Initialize the UV array
+
+        _uvs = new Vector2[_vertices.Length];
+
         int i = 0;
-        for (int z = 0; z <= ySize; z++)
-        {
-            for (int x = 0; x <= xSize; x++)
-            {
-                //float height = Mathf.PerlinNoise(x * 0.3f, z * 0.3f);
-                float height = texture.GetPixel(x, z).r;
-                averageElevation = (averageElevation + height) / 2;
-                vertices[i++] = new Vector3(x * scale, height * depth, z * scale);
-            }
-        }
-        triangles = new int[xSize * ySize * 6];
         int vert = 0;
         int tris = 0;
-        for (int z = 0; z < ySize; z++)
-        {
-            for (int x = 0; x < xSize; x++)
-            {
-                triangles[tris] = vert;
-                triangles[tris + 1] = vert + 1 + xSize;
-                triangles[tris + 2] = vert + 1;
-                triangles[tris + 3] = vert + 1;
-                triangles[tris + 4] = vert + 1 + xSize;
-                triangles[tris + 5] = vert + 2 + xSize;
 
-                vert++;
-                tris += 6;
+        // Iterate over every pixel in the texture
+        for (int z = 0; z <= _ySize; z++)
+        {
+            for (int x = 0; x <= _xSize; x++)
+            {
+
+                // Create a new vertex in a grid with the height of it's cooresponding pixel in the height map
+
+                float height = texture.GetPixel(x, z).r;
+                _vertices[i] = new Vector3(x * _scale, height * depth, z * _scale);
+
+                // Get the average elevation for the chunk
+
+                averageElevation = averageElevation + height;
+
+                // If this pixel isn't at the edge, calculate what triangles it's in and add them to the triangle array
+
+                if (x != _xSize && z != _ySize) {
+                    _triangles[tris] = vert;
+                    _triangles[tris + 1] = vert + 1 + _xSize;
+                    _triangles[tris + 2] = vert + 1;
+                    _triangles[tris + 3] = vert + 1;
+                    _triangles[tris + 4] = vert + 1 + _xSize;
+                    _triangles[tris + 5] = vert + 2 + _xSize;
+
+                    vert++;
+                    tris += 6;
+                }
+                
+                // Generate the UV for this vertex
+
+                _uvs[i] = new Vector2((float)x / _xSize, (float)z / _ySize);
+                i++;
             }
             vert++;
         }
-        uvs = new Vector2[vertices.Length];
-        i = 0;
-        for (int z = 0; z <= ySize; z++)
-        {
-            for (int x = 0; x <= xSize; x++)
-            {
-                uvs[i] = new Vector2((float)x / xSize, (float)z / ySize);
-                //print(uvs[i]);
-                i++;
-            }
-        }
-        meshRenderer = GetComponent<MeshRenderer>();
+
+        // Calculate the averate elevation
+
+        averageElevation /= _vertices.Length;
+
+        _meshRenderer = GetComponent<MeshRenderer>();
+
+        // Apply these changes to the mesh
+
         updateMesh();
-        GetComponent<MeshCollider>().sharedMesh = mesh;
+
+        // Set the mesh for the mesh collider
+
+        GetComponent<MeshCollider>().sharedMesh = _mesh;
+        
+        // Finish generating
+
         FinishedGenerating();
     }
 
+    /*
+     * This function applies the vertex, triangle, and UV arrays to the mesh and sets some values in the chunk shader
+     * For more information on Unity chunk generation, see this tutorial: https://www.youtube.com/watch?v=eJEpeUH1EMg
+     */
+
     void updateMesh()
     {
-        mesh.SetVertices(vertices);
-        mesh.SetTriangles(triangles, 0);
-        mesh.SetUVs(0, uvs);
-        mesh.RecalculateNormals();
-        Material chunkMaterial = new Material(terrainShader);
-        chunkMaterial.SetTexture("HeightMap", heightMapTexture);
-        chunkMaterial.SetTexture("ColorMap", colorMapTexture);
-        chunkMaterial.SetFloat("Depth", depth);
+        // Set the vertices, triangles, and UVs in the mesh
 
-        meshRenderer.sharedMaterial = chunkMaterial;
+        _mesh.SetVertices(_vertices);
+        _mesh.SetTriangles(_triangles, 0);
+        _mesh.SetUVs(0, _uvs);
+
+        // Recalculate the normals of the mesh to correct shading
+
+        _mesh.RecalculateNormals();
+        
+        // Set the chunk's texture to the colormap
+        
+        if (Application.isEditor) {
+
+            // Unity complains if you try to mess with MeshRenderer.material in the editor, so this gets around that
+
+            Material terrainMaterial = new Material(_meshRenderer.sharedMaterial);
+            terrainMaterial.SetTexture("ColorMap", colorMapTexture);
+            _meshRenderer.sharedMaterial = terrainMaterial;
+        }
+        else {
+            _meshRenderer.material.SetTexture("ColorMap", colorMapTexture);
+        }
     }
+
+    /*
+     * This function is called when the chunk finishes generating, and can be used for any gameplay
+     * things that need to be done. Right now all it does is calculate if the chunk can be settled
+     */
 
     public void FinishedGenerating()
     {
@@ -140,13 +208,18 @@ public class ChunkGenerator : MonoBehaviour
         }
     }
 
+    /*
+     * This function will calculate if a chunk can be settled.
+     * Right now that is only based on the average elevation
+     */
+
     void CalculateIsHabitable()
     {
         if (biomeData[3] > 0.66 || averageElevation > 0.1)
         {
-            if (chunk)
+            if (_chunk)
             {
-                chunk.habitable = false;
+                _chunk.habitable = false;
             }
         }
     }
