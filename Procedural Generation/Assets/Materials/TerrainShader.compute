@@ -39,6 +39,7 @@ struct Output
 
 // Constants
 bool DrawBiomes;
+bool BiomeMap;
 bool BiomeBlending;
 bool BiomeHeights;
 float BiomeBlendRadius;
@@ -562,13 +563,17 @@ void HeightMap(uint3 id : SV_DispatchThreadID)
 
 	// Calculate the noise at this point
 
-	float noise = CalculateHeightNoise(float2(x, y));
+	float noise = 0;
+
+	if (!BiomeMap) {
+		noise = CalculateHeightNoise(float2(x, y));
+	}
 
 	// Get the pixel coordinate of the noise on the curve textures
 
 	int curveIndex = (int) (noise * CurveResolution);
 
-	if (BiomeHeights)
+	if (BiomeHeights && !BiomeMap)
 	{
 		// If biome specific height curves are enabled, use the biome blending
 		// function to get the new noise, but only if there are multiple biomes in the chunk

@@ -30,7 +30,7 @@ public class CameraController : MonoBehaviour
     void Awake()
     {
         _camera = Camera.main;
-        _worldGenerator = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
+        _worldGenerator = GameObject.FindWithTag("WorldGenerator").GetComponent<WorldGenerator>();
         _gameManager = GameObject.FindWithTag("GameController").GetComponent<GameManager>();
     }
 
@@ -185,7 +185,9 @@ public class CameraController : MonoBehaviour
             {
                 // If the chunk is too far from the camera, then unload it
 
-                chunk.Unload();
+                if (chunk.isLoaded()) {
+                    chunk.Unload();
+                }
                 if (screenSaver)
                 {
 

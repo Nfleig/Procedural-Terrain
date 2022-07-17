@@ -909,12 +909,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 725d979cf45bed741bedc88b2acd5fab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MovementSpeed: 22.5
+  MovementSpeed: 20
   ZoomSpeed: 1
   MinZoomDistance: 10
   MaxZoomDistance: 20
   XRotateThreshold: 10
-  VisibleChunks: 16
+  VisibleChunks: 12
   screenSaver: 0
 --- !u!4 &1538394344
 Transform:
@@ -943,7 +943,7 @@ GameObject:
   - component: {fileID: 1813089841}
   m_Layer: 0
   m_Name: WorldGenerator
-  m_TagString: World Generator
+  m_TagString: WorldGenerator
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -974,9 +974,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1d592daecc6c3364388946b51357593c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chunkObject: {fileID: 5880690495273791906, guid: 587da03036ece3847a1f5d641701e8ab,
+  chunkObject: {fileID: 7946968790726216093, guid: ef302535e6289df4db7dd64721fe8cfb,
     type: 3}
-  biomeShader: {fileID: 7200000, guid: 0895db38074eb804191a53a909abdf25, type: 3}
   terrainShader: {fileID: 7200000, guid: 0defa2695cacf61418703f544156d4c6, type: 3}
   xSize: 10
   zSize: 10
@@ -1021,19 +1020,19 @@ MonoBehaviour:
     offset: {x: 0, y: 0}
     octaveArray:
     - frequency: 1
-      offset: {x: 618, y: 878}
+      offset: {x: -984, y: -388}
       amplitude: 1
     - frequency: 2.5
-      offset: {x: 745, y: -899}
+      offset: {x: 611, y: 195}
       amplitude: 0.3
     - frequency: 6.25
-      offset: {x: -181, y: 867}
+      offset: {x: -523, y: 506}
       amplitude: 0.09
     - frequency: 15.625
-      offset: {x: 656, y: -210}
+      offset: {x: -219, y: 443}
       amplitude: 0.027000003
     - frequency: 39.0625
-      offset: {x: 447, y: 902}
+      offset: {x: -392, y: 156}
       amplitude: 0.008100001
   temperatureMapSettings:
     scale: 20
@@ -1067,13 +1066,13 @@ MonoBehaviour:
     offset: {x: 0, y: 0}
     octaveArray:
     - frequency: 1
-      offset: {x: -342, y: 804}
+      offset: {x: -17, y: 614}
       amplitude: 1
     - frequency: 2.5
-      offset: {x: 300, y: 138}
+      offset: {x: -282, y: 517}
       amplitude: 0.3
     - frequency: 6.25
-      offset: {x: 305, y: 501}
+      offset: {x: 605, y: 763}
       amplitude: 0.09
   moistureMapSettings:
     scale: 20
@@ -1107,13 +1106,13 @@ MonoBehaviour:
     offset: {x: 0, y: 0}
     octaveArray:
     - frequency: 1
-      offset: {x: 551, y: 3}
+      offset: {x: -953, y: -958}
       amplitude: 1
     - frequency: 2.5
-      offset: {x: -149, y: -795}
+      offset: {x: -72, y: 373}
       amplitude: 0.3
     - frequency: 6.25
-      offset: {x: 274, y: 990}
+      offset: {x: -105, y: 480}
       amplitude: 0.09
   biomeBlendMapSettings:
     scale: 50
@@ -1147,10 +1146,10 @@ MonoBehaviour:
     offset: {x: 0, y: 0}
     octaveArray:
     - frequency: 1
-      offset: {x: -701, y: 106}
+      offset: {x: 675, y: 982}
       amplitude: 1
     - frequency: 2.5
-      offset: {x: -279, y: -898}
+      offset: {x: -612, y: 433}
       amplitude: 0.3
   jitterMapSettings:
     scale: 0.001
@@ -1184,24 +1183,24 @@ MonoBehaviour:
     offset: {x: 0, y: 0}
     octaveArray:
     - frequency: 1
-      offset: {x: 306, y: -4}
+      offset: {x: 749, y: -762}
       amplitude: 1
     - frequency: 2.5
-      offset: {x: 881, y: -478}
+      offset: {x: -136, y: -548}
       amplitude: 0.3
     - frequency: 6.25
-      offset: {x: 957, y: -340}
+      offset: {x: -200, y: -498}
       amplitude: 0.09
     - frequency: 15.625
-      offset: {x: 156, y: 450}
+      offset: {x: -584, y: 831}
       amplitude: 0.027000003
   chunkResolution: 64
   chunkSize: 16
-  chunkGenBatchSize: 4
+  chunkGenBatchSize: 2
   depth: 10
   worldScale: 1
-  seed: 1440908868
-  randomSeed: 1
+  seed: 1400312478
+  randomSeed: 0
   drawBiomes: 1
   useBiomeBlending: 1
   useBiomeHeights: 1
@@ -1404,62 +1403,6 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  - name: Ocean
-    moisture: 1
-    temperature: 0.5
-    color:
-      serializedVersion: 2
-      key0: {r: 0, g: 0.60356754, b: 0.81960785, a: 1}
-      key1: {r: 0.031372547, g: 0.68658996, b: 1, a: 1}
-      key2: {r: 0.5568628, g: 0.5568628, b: 0.5568628, a: 0.4}
-      key3: {r: 0.5568628, g: 0.5568628, b: 0.5568628, a: 0.4}
-      key4: {r: 0.627451, g: 0.62352943, b: 0.62352943, a: 0.4}
-      key5: {r: 1, g: 1, b: 1, a: 0.4}
-      key6: {r: 0.21176471, g: 0.59607846, b: 0.050980393, a: 0.4}
-      key7: {r: 0.21176471, g: 0.59607846, b: 0.050980393, a: 0.4}
-      ctime0: 0
-      ctime1: 4241
-      ctime2: 15420
-      ctime3: 17540
-      ctime4: 33731
-      ctime5: 65535
-      ctime6: 0
-      ctime7: 0
-      atime0: 0
-      atime1: 65342
-      atime2: 0
-      atime3: 0
-      atime4: 0
-      atime5: 0
-      atime6: 0
-      atime7: 0
-      m_Mode: 0
-      m_NumColorKeys: 6
-      m_NumAlphaKeys: 2
-    heightCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0.1309201
-        outSlope: 0.1309201
-        tangentMode: 34
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0.33333334
-      - serializedVersion: 3
-        time: 0.99998164
-        value: 0.1309177
-        inSlope: 0.1309201
-        outSlope: 0.1309201
-        tangentMode: 34
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
   - name: Savana
     moisture: 0.4
     temperature: 0.6
@@ -1521,6 +1464,62 @@ MonoBehaviour:
         tangentMode: 0
         weightedMode: 0
         inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  - name: Ocean
+    moisture: 1
+    temperature: 0.6
+    color:
+      serializedVersion: 2
+      key0: {r: 0, g: 0.60356754, b: 0.81960785, a: 1}
+      key1: {r: 0.031372547, g: 0.68658996, b: 1, a: 1}
+      key2: {r: 0.5568628, g: 0.5568628, b: 0.5568628, a: 0.4}
+      key3: {r: 0.5568628, g: 0.5568628, b: 0.5568628, a: 0.4}
+      key4: {r: 0.627451, g: 0.62352943, b: 0.62352943, a: 0.4}
+      key5: {r: 1, g: 1, b: 1, a: 0.4}
+      key6: {r: 0.21176471, g: 0.59607846, b: 0.050980393, a: 0.4}
+      key7: {r: 0.21176471, g: 0.59607846, b: 0.050980393, a: 0.4}
+      ctime0: 0
+      ctime1: 4241
+      ctime2: 15420
+      ctime3: 17540
+      ctime4: 33731
+      ctime5: 65535
+      ctime6: 0
+      ctime7: 0
+      atime0: 0
+      atime1: 65342
+      atime2: 0
+      atime3: 0
+      atime4: 0
+      atime5: 0
+      atime6: 0
+      atime7: 0
+      m_Mode: 0
+      m_NumColorKeys: 6
+      m_NumAlphaKeys: 2
+    heightCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0.1309201
+        outSlope: 0.1309201
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.99998164
+        value: 0.1309177
+        inSlope: 0.1309201
+        outSlope: 0.1309201
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
         outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2

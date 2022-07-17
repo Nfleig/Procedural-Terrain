@@ -5,22 +5,28 @@ using UnityEngine;
 public class Chunk : MonoBehaviour
 {
     public GameObject houseObject;
+    public float spawnSpeed;
     private MeshRenderer renderer;
     private ChunkGenerator generator;
     private static GameManager gameManager;
     private static CameraController camera;
+    private Transform _parent;
+    private Animator _animator;
     public Vector2 position;
     public bool hovering;
     public bool selected;
     public bool claimed;
     public bool habitable;
     private bool loaded;
+    public bool ignoreInput;
 
 
     private void Awake()
     {
         gameManager = GameObject.FindWithTag("GameController").GetComponent<GameManager>();
         camera = GameObject.FindWithTag("Player").GetComponent<CameraController>();
+        _animator = GetComponent<Animator>();
+        _parent = transform.parent;
         loaded = true;
     }
 
@@ -29,7 +35,6 @@ public class Chunk : MonoBehaviour
     {
         renderer = GetComponent<MeshRenderer>();
         generator = GetComponent<ChunkGenerator>();
-        //position = new Vector2(transform.position.x / 8, transform.position.y / 8);
     }
 
     public ChunkGenerator GetGenerator()
@@ -44,14 +49,20 @@ public class Chunk : MonoBehaviour
 
     public void Load()
     {
+        _animator.SetTrigger("Place");
         renderer.enabled = true;
         loaded = true;
     }
 
     public void Unload()
     {
-        renderer.enabled = false;
+        _animator.SetTrigger("Remove");
+        Invoke("HideObject", 0.5f);
         loaded = false;
+    }
+
+    void HideObject() {
+        renderer.enabled = false;
     }
 
     public void Settle()
@@ -81,28 +92,33 @@ public class Chunk : MonoBehaviour
                 Deselect();
             }
         }
+        _animator.SetBool("Hovered", hovering);
+        _animator.SetBool("Selected", selected);
     }
+
 
     public void Select()
     {
-        if (claimed || !habitable)
+        if (claimed)
         {
-            transform.position = new Vector3(transform.position.x, 3, transform.position.z);
+            // Chunk cannot be settled
         } else
         {
             //Settle();
-            transform.position = new Vector3(transform.position.x, 3, transform.position.z);
         }
     }
 
     private void Deselect()
     {
-        transform.position = new Vector3(transform.position.x, 0, transform.position.z);
         selected = false;
     }
 
     private void OnMouseDown()
     {
+        if (ignoreInput) {
+            return;
+        }
+
         selected = !selected;
         if (selected)
         {
@@ -115,18 +131,24 @@ public class Chunk : MonoBehaviour
 
     private void OnMouseOver()
     {
+        if (ignoreInput) {
+            return;
+        }
+
         if (!hovering)
         {
-            transform.position = new Vector3(transform.position.x, 1, transform.position.z);
             hovering = true;
         }
     }
 
     private void OnMouseExit()
     {
+        if (ignoreInput) {
+            return;
+        }
+        
         hovering = false;
         selected = false;
-        transform.position = new Vector3(transform.position.x, 0, transform.position.z);
     }
 
 }

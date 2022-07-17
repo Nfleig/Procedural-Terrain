@@ -23,6 +23,7 @@ public class ChunkGenerator : MonoBehaviour
     private MeshRenderer _meshRenderer;
     private static WorldGenerator _worldGenerator;
     private Chunk _chunk;
+    private Animator _animator;
     private int _xSize;
     private int _ySize;
     private float _scale;
@@ -33,8 +34,9 @@ public class ChunkGenerator : MonoBehaviour
 
     private void Awake()
     {
-        _worldGenerator = GameObject.FindWithTag("World Generator").GetComponent<WorldGenerator>();
+        _worldGenerator = GameObject.FindWithTag("WorldGenerator").GetComponent<WorldGenerator>();
         _chunk = GetComponent<Chunk>();
+        _animator = GetComponent<Animator>();
     }
 
     /*
@@ -146,7 +148,7 @@ public class ChunkGenerator : MonoBehaviour
 
         // Apply these changes to the mesh
 
-        updateMesh();
+        UpdateMesh();
 
         // Set the mesh for the mesh collider
 
@@ -162,7 +164,7 @@ public class ChunkGenerator : MonoBehaviour
      * For more information on Unity chunk generation, see this tutorial: https://www.youtube.com/watch?v=eJEpeUH1EMg
      */
 
-    void updateMesh()
+    void UpdateMesh()
     {
         // Set the vertices, triangles, and UVs in the mesh
 
@@ -206,6 +208,7 @@ public class ChunkGenerator : MonoBehaviour
                 maxPercent = biomeData[i];
             }
         }
+        _animator.SetTrigger("Place");
     }
 
     /*

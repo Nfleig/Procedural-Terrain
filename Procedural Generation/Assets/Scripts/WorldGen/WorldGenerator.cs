@@ -8,7 +8,6 @@ public class WorldGenerator : MonoBehaviour
 {
     // Public properties
     public GameObject chunkObject;
-    public ComputeShader biomeShader;
     public ComputeShader terrainShader;
     public int xSize = 16;
     public int zSize = 16;
@@ -224,12 +223,12 @@ public class WorldGenerator : MonoBehaviour
             ChunkGenerator.depth = 0;
         }
         
-
+        InvokeRepeating("GenerateQueuedChunks", 0f, 0.05f);
     }
 
     public void Update()
     {
-
+        /*
         // If there are any chunks in the chunk queue, this takes a specified amount of them and computes them
         if (isGenerating)
         {
@@ -244,6 +243,20 @@ public class WorldGenerator : MonoBehaviour
 
         // Set the isGenerating flag so other objects can see if the world generator is running
         isGenerating = chunkQueue.Count > 0;
+        */
+    }
+
+    void GenerateQueuedChunks() {
+        isGenerating = chunkQueue.Count > 0;
+        if (isGenerating) {
+            int i = 0;
+            while (i < chunkGenBatchSize && chunkQueue.Count > 0)
+            {
+                ChunkGenerator chunk = chunkQueue.Dequeue();
+                CalculateChunk(chunk);
+                i++;
+            }
+        }
     }
 
     public bool IsGenerating()
@@ -290,10 +303,10 @@ public class WorldGenerator : MonoBehaviour
     {
         // Initializes the chunk object
 
-        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * _step, 0, y * _step), Quaternion.identity).GetComponent<ChunkGenerator>();
-        Chunk newChunkObject = newChunk.GetComponent<Chunk>();
+        ChunkGenerator newChunk = Instantiate(chunkObject, new Vector3(x * _step, 0, y * _step), Quaternion.identity).GetComponentInChildren<ChunkGenerator>();
+        Chunk newChunkObject = newChunk.GetComponentInChildren<Chunk>();
         newChunk.InitializeTerrain(chunkResolution, chunkResolution, _scale);
-        newChunk.GetComponent<Chunk>().position = new Vector2(x, y);
+        newChunkObject.position = new Vector2(x, y);
 
         // Queues the chunk to get generated later
 
@@ -493,6 +506,7 @@ public class WorldGenerator : MonoBehaviour
         terrainShader.SetFloat("Resolution", chunkResolution + 2);
         terrainShader.SetFloat("CurveResolution", GPUCurveResolution);
         terrainShader.SetBool("DrawBiomes", drawBiomes);
+        terrainShader.SetBool("BiomeMap", flatMap);
         terrainShader.SetBool("BiomeBlending", useBiomeBlending);
         terrainShader.SetFloat("BiomeBlendRadius", biomeBlendRange);
         terrainShader.SetBool("BiomeHeights", useBiomeHeights);
